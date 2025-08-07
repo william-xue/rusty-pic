@@ -1,0 +1,41 @@
+# Memory Bank runtime data
+.kiro/memory/**/*
+!.kiro/memory/.gitkeep
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.kiro
+node_modules
+dist
+dist-ssr
+*.local
+
+# Rust
+target/
+Cargo.lock
+
+# WebAssembly
+pkg/
+*.wasm
+
+# Build artifacts
+libformats.rlib
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# Ensure no secrets are committed from memory bank runtime
+.kiro/memory/**/*.json
+.kiro/memory/**/*.md

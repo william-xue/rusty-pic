@@ -1,0 +1,12 @@
+[package]
+name = "rusty-pic"
+version = "0.1.0"
+description = "High-performance image compression library powered by Rust and WebAssembly"
+license = "MIT"
+repository = "https://github.com/your-username/rusty-pic"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-mutable-globals"]
+
+[package.metadata.wasm-pack.profile.dev]
+wasm-opt = false

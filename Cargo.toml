@@ -1,0 +1,16 @@
+[workspace]
+members = [
+    "crates/rusty-pic-core",
+    "crates/rusty-pic-wasm",
+]
+resolver = "2"
+
+# 顶层仅作为 workspace 管理；WASM 绑定在 crates/rusty-pic-wasm
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "s"
+
+[workspace.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-mutable-globals"]

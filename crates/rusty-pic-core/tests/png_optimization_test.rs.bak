@@ -1,0 +1,180 @@
+use image::{ImageBuffer, Rgb, Rgba};
+use rusty_pic_core::compression::OptimizeOptions;
+use rusty_pic_core::{CompressionEngine, CompressionOptions, PngOptions};
+
+#[test]
+fn test_png_optimization_features() {
+    // Create a test image with some patterns
+    let img = image::DynamicImage::ImageRgb8(ImageBuffer::from_fn(64, 64, |x, y| {
+        let r = ((x * 4) % 256) as u8;
+        let g = ((y * 4) % 256) as u8;
+        let b = ((x + y) % 256) as u8;
+        Rgb([r, g, b])
+    }));
+
+    // Encode to PNG first
+    let mut png_data = Vec::new();
+    {
+        let encoder = image::codecs::png::PngEncoder::new(&mut png_data);
+        img.write_with_encoder(encoder).unwrap();
+    }
+
+    // Test PNG optimization with different levels
+    for level in 0..=6 {
+        let result = rusty_pic_core::formats::png::encode_with_level(&png_data, level);
+        assert!(result.is_ok(), "PNG optimization failed at level {}", level);
+
+        let optimized_data = result.unwrap();
+        assert!(
+            !optimized_data.is_empty(),
+            "Optimized PNG data is empty at level {}",
+            level
+        );
+
+        // Verify the optimized data is valid PNG
+        let decoded = image::load_from_memory(&optimized_data);
+        assert!(
+            decoded.is_ok(),
+            "Optimized PNG is not valid at level {}",
+            level
+        );
+    }
+}
+
+#[test]
+fn test_png_transparency_optimization() {
+    // Create an RGBA image with full opacity
+    let rgba_img = image::DynamicImage::ImageRgba8(ImageBuffer::from_fn(32, 32, |x, y| {
+        Rgba([
+            (x * 8) as u8,
+            (y * 8) as u8,
+            ((x + y) * 4) as u8,
+            255, // Full opacity
+        ])
+    }));
+
+    let options = PngOptions {
+        transparency_optimization: true,
+        ..Default::default()
+    };
+
+    let result = rusty_pic_core::formats::png::encode_optimized(&rgba_img, &options);
+    assert!(result.is_ok(), "PNG transparency optimization failed");
+
+    let optimized_data = result.unwrap();
+    assert!(!optimized_data.is_empty(), "Optimized PNG data is empty");
+
+    // Verify the optimized data is valid
+    let decoded = image::load_from_memory(&optimized_data);
+    assert!(
+        decoded.is_ok(),
+        "Optimized PNG with transparency is not valid"
+    );
+}
+
+#[test]
+fn test_png_palette_optimization() {
+    // Create an image with limited colors (good for palette optimization)
+    let img = image::DynamicImage::ImageRgb8(ImageBuffer::from_fn(32, 32, |x, y| {
+        // Only use 8 different colors
+        let color_index = ((x / 4) + (y / 4)) % 8;
+        match color_index {
+            0 => Rgb([255, 0, 0]),     // Red
+            1 => Rgb([0, 255, 0]),     // Green
+            2 => Rgb([0, 0, 255]),     // Blue
+            3 => Rgb([255, 255, 0]),   // Yellow
+            4 => Rgb([255, 0, 255]),   // Magenta
+            5 => Rgb([0, 255, 255]),   // Cyan
+            6 => Rgb([255, 255, 255]), // White
+            _ => Rgb([0, 0, 0]),       // Black
+        }
+    }));
+
+    let options = PngOptions {
+        palette_optimization: true,
+        optimization_level: 4,
+        ..Default::default()
+    };
+
+    let result = rusty_pic_core::formats::png::encode_optimized(&img, &options);
+    assert!(result.is_ok(), "PNG palette optimization failed");
+
+    let optimized_data = result.unwrap();
+    assert!(!optimized_data.is_empty(), "Optimized PNG data is empty");
+
+    // Verify the optimized data is valid
+    let decoded = image::load_from_memory(&optimized_data);
+    assert!(decoded.is_ok(), "Optimized PNG with palette is not valid");
+}
+
+#[test]
+fn test_compression_engine_png_optimization() {
+    // Create a test image
+    let img = image::DynamicImage::ImageRgb8(ImageBuffer::from_fn(48, 48, |x, y| {
+        Rgb([(x * 5) as u8, (y * 5) as u8, ((x + y) * 3) as u8])
+    }));
+
+    // Encode to PNG first
+    let mut png_data = Vec::new();
+    {
+        let encoder = image::codecs::png::PngEncoder::new(&mut png_data);
+        img.write_with_encoder(encoder).unwrap();
+    }
+
+    let engine = CompressionEngine::new();
+
+    // Test with optimization enabled
+    let options = CompressionOptions {
+        format: Some("png".to_string()),
+        quality: Some(80),
+        resize: None,
+        optimize: Some(OptimizeOptions {
+            colors: true,
+            progressive: false, // Not applicable to PNG
+            lossless: true,
+        }),
+    };
+
+    let result = engine.compress(&png_data, &options);
+    assert!(result.is_ok(), "Compression engine PNG optimization failed");
+
+    let compression_result = result.unwrap();
+    assert_eq!(compression_result.format, "png");
+    assert!(
+        !compression_result.data.is_empty(),
+        "Compressed PNG data is empty"
+    );
+    assert!(
+        compression_result.compressed_size > 0,
+        "Compressed size should be greater than 0"
+    );
+
+    // Verify the compressed data is valid PNG
+    let decoded = image::load_from_memory(&compression_result.data);
+    assert!(decoded.is_ok(), "Compressed PNG is not valid");
+}
+
+#[test]
+fn test_png_grayscale_optimization() {
+    // Create a grayscale image (RGB with R=G=B)
+    let img = image::DynamicImage::ImageRgb8(ImageBuffer::from_fn(32, 32, |x, y| {
+        let gray_value = ((x + y) * 4) as u8;
+        Rgb([gray_value, gray_value, gray_value])
+    }));
+
+    let options = PngOptions {
+        color_type_reduction: true,
+        optimization_level: 3,
+        ..Default::default()
+    };
+
+    let result = rusty_pic_core::formats::png::encode_optimized(&img, &options);
+    assert!(result.is_ok(), "PNG grayscale optimization failed");
+
+    let optimized_data = result.unwrap();
+    assert!(!optimized_data.is_empty(), "Optimized PNG data is empty");
+
+    // Verify the optimized data is valid
+    let decoded = image::load_from_memory(&optimized_data);
+    assert!(decoded.is_ok(), "Optimized grayscale PNG is not valid");
+}

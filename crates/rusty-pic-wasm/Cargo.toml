@@ -1,0 +1,45 @@
+[package]
+name = "rusty-pic-wasm"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "WASM bindings for rusty-pic core compression engine"
+repository = "https://example.com/rusty-pic"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# 默认开启体积与性能优化，不强制安装 panic hook
+default = ["wee_alloc"]
+# 可选功能：启用更友好的 panic 输出（开发调试用）
+console_error_panic_hook = ["dep:console_error_panic_hook"]
+# 可选功能：启用紧凑分配器（减小体积/分配开销）
+wee_alloc = ["dep:wee_alloc"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+serde_json = "1"
+# 引用核心引擎（临时仅启用 png，避免 C 依赖在 wasm 目标编译失败）
+rusty-pic-core = { path = "../rusty-pic-core", default-features = false, features = ["png"] }
+# 可选分配器（通过 feature 控制）
+wee_alloc = { version = "0.4", optional = true }
+
+# 可选：在 wasm 环境打印 panic 更友好（通过 feature 控制）
+console_error_panic_hook = { version = "0.1.7", optional = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[profile.release]
+codegen-units = 1
+lto = true
+# -s 会移除符号表，减体积；也可使用 "z" 聚焦体积
+opt-level = "z"
+# 附加优化项（与 workspace metadata 中的 wasm-opt 配合）
+panic = "abort"
+strip = true

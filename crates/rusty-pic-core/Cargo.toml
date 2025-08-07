@@ -1,0 +1,64 @@
+[package]
+name = "rusty-pic-core"
+version = "0.1.0"
+edition = "2021"
+description = "Core image compression algorithms for rusty-pic"
+
+[dependencies]
+# 基础依赖
+image = { version = "0.24", default-features = false }
+rayon = "1.8"
+log = { version = "0.4", optional = true }
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+rgb = "0.8"
+
+# 可选格式依赖（按 feature 装配，避免 wasm32 环境编译 C 依赖）
+mozjpeg = { version = "0.10", optional = true }
+webp = { version = "0.2", optional = true }
+ravif = { version = "0.11", optional = true }
+
+# 性能优化依赖
+wide = "0.7"  # SIMD operations
+bytemuck = "1.14"  # Zero-copy type conversions
+memmap2 = "0.9"  # Memory-mapped file I/O
+crossbeam-channel = "0.5"  # Lock-free channels for parallel processing
+
+[features]
+# 默认仅启用 logging 与 png，避免在 wasm 构建时引入 C 依赖
+default = ["logging", "png"]
+logging = ["log"]
+
+# 按格式拆分的特性
+png = ["image/png"]                        # 纯 Rust 路径（启用 image 的 png 特性）
+# 使用 dep: 前缀将可选依赖绑定到 feature，修复 cargo manifest 校验错误
+jpeg = ["dep:mozjpeg", "image/jpeg"]       # 依赖 mozjpeg 与 image 的 jpeg 特性
+webp = ["dep:webp", "image/webp"]          # 依赖 webp crate 与 image 的 webp 特性
+avif = ["dep:ravif"]                       # 依赖 ravif crate（可能间接需要 C/系统工具链）
+
+# 为 image 启用对应编解码特性（由上面的 feature 透传）
+# 注意：image 没有直接 feature gate 透传，需要使用上面数组（如 "image/jpeg"）启用
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+image = { version = "0.24", features = ["png", "jpeg"] }
+
+[[bench]]
+name = "compression_benchmarks"
+harness = false
+
+[[bench]]
+name = "png_optimization_benchmark"
+harness = false
+
+[[bench]]
+name = "webp_optimization_benchmark"
+harness = false
+
+[[bench]]
+name = "avif_optimization_benchmark"
+harness = false
+
+[[bench]]
+name = "performance_benchmark"
+harness = false
