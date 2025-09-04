@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deployment Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        .warning { background-color: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Rusty-Pic GitHub Pages Deployment Test</h1>
+    
+    <div class="status success">
+        ✅ HTML page loaded successfully
+    </div>
+    
+    <div class="status info">
+        📍 Current URL: <span id="current-url"></span>
+    </div>
+    
+    <div class="status info">
+        🔗 Base URL: <span id="base-url"></span>
+    </div>
+    
+    <h2>Deployment Checklist</h2>
+    <ul>
+        <li>✅ GitHub Pages enabled in repository settings</li>
+        <li>✅ Source set to "GitHub Actions"</li>
+        <li>✅ Simple deployment workflow created</li>
+        <li>✅ Base URL configuration fixed</li>
+        <li>✅ WASM build configured for PNG only</li>
+        <li>✅ System dependencies (nasm) added to workflow</li>
+    </ul>
+    
+    <h2>Next Steps</h2>
+    <ol>
+        <li>Check GitHub Actions tab for deployment status</li>
+        <li>Visit the deployed site at: <code>https://[username].github.io/rusty-pic/</code></li>
+        <li>Test image compression functionality</li>
+        <li>Verify all assets load correctly</li>
+    </ol>
+    
+    <h2>Troubleshooting</h2>
+    <p>If deployment fails:</p>
+    <ul>
+        <li>Check the Actions tab for error logs</li>
+        <li>Ensure Pages is enabled in repository settings</li>
+        <li>Verify the workflow has proper permissions</li>
+        <li>Check that all dependencies are correctly installed</li>
+    </ul>
+    
+    <script>
+        document.getElementById('current-url').textContent = window.location.href;
+        document.getElementById('base-url').textContent = window.location.pathname.includes('/rusty-pic/') ? '/rusty-pic/' : '/';
+        
+        // Test if we're on GitHub Pages
+        if (window.location.hostname.includes('github.io')) {
+            const status = document.createElement('div');
+            status.className = 'status success';
+            status.innerHTML = '🎉 Successfully deployed to GitHub Pages!';
+            document.body.insertBefore(status, document.querySelector('h2'));
+        }
+    </script>
+</body>
+</html>
