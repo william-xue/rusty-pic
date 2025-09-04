@@ -8,8 +8,10 @@ import Docs from "@/pages/Docs";
 import Layout from "@/components/Layout";
 
 export default function App() {
+  const basename = import.meta.env.PROD ? '/rusty-pic' : '';
+
   return (
-    <Router>
+    <Router basename={basename}>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
