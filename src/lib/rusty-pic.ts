@@ -115,9 +115,9 @@ export class RustyPic {
         originalSize: number,
         startTime: number
     ): Promise<CompressionResult> {
-        const { createRustyPic, JsCompressionOptions } = this.wasmModule;
+        const { RustyPic: WasmRustyPic, JsCompressionOptions } = this.wasmModule;
 
-        const rp = createRustyPic();
+        const rp = new WasmRustyPic();
         const opt = new JsCompressionOptions();
 
         // 设置压缩选项

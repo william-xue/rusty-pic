@@ -146,7 +146,7 @@ export function rustyPicPlugin(options: RustyPicPluginOptions = {}): Plugin {
 
         if (messageLevelIndex <= currentLevelIndex) {
             const prefix = `[rusty-pic]`;
-            console[level as keyof Console]?.(prefix, message, ...args);
+            (console[level as keyof Console] as any)?.(prefix, message, ...args);
         }
     };
 

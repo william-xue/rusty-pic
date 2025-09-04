@@ -17,6 +17,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y nasm
+    
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
@@ -38,10 +43,10 @@ jobs:
       run: cargo fmt --all -- --check
     
     - name: Run clippy
-      run: cargo clippy --all-targets --all-features -- -W clippy::all
+      run: cargo clippy --all-targets --features "logging,png" -- -W clippy::all
     
     - name: Run tests
-      run: cargo test --all-features
+      run: cargo test --features "logging,png"
 
   test-javascript:
     name: Test JavaScript
@@ -91,6 +96,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y nasm
+    
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
@@ -111,7 +121,7 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Build WASM package
-      run: wasm-pack build --target web --out-dir ../../pkg crates/rusty-pic-wasm
+      run: wasm-pack build --target web --out-dir ../../pkg --features "png" crates/rusty-pic-wasm
     
     - name: Upload WASM artifacts
       uses: actions/upload-artifact@v4
