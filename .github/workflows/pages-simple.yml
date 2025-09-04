@@ -1,10 +1,12 @@
-name: Deploy to GitHub Pages (Disabled)
+name: Simple GitHub Pages Deploy
 
 on:
   workflow_dispatch:
-  # Disabled automatic deployment to avoid conflicts
-  # push:
-  #   branches: [ main ]
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
 
 permissions:
   contents: read
@@ -13,22 +15,25 @@ permissions:
 
 concurrency:
   group: "pages"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
     
     - name: Install system dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y nasm
     
-    - name: Install Rust
+    - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
       with:
         targets: wasm32-unknown-unknown
@@ -36,39 +41,27 @@ jobs:
     - name: Install wasm-pack
       run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
     
-    - name: Install Node.js
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
     
-    - name: Install pnpm
+    - name: Setup pnpm
       uses: pnpm/action-setup@v4
       with:
         version: 8
     
-    - name: Cache dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-          ~/.pnpm-store
-        key: ${{ runner.os }}-deps-${{ hashFiles('**/Cargo.lock', '**/pnpm-lock.yaml') }}
-    
     - name: Install dependencies
-      run: pnpm install
+      run: pnpm install --frozen-lockfile
     
-    - name: Build WASM
+    - name: Build WASM (PNG only)
       run: wasm-pack build --target web --out-dir ../../pkg --features "png" crates/rusty-pic-wasm
     
+    - name: Build library
+      run: pnpm run build:lib
+    
     - name: Build frontend
-      run: pnpm run build
-      env:
-        # 设置基础路径为 GitHub Pages 路径
-        VITE_BASE_URL: /rusty-pic/
+      run: NODE_ENV=production pnpm run build
     
     - name: Setup Pages
       uses: actions/configure-pages@v4
@@ -77,16 +70,7 @@ jobs:
       uses: actions/upload-pages-artifact@v3
       with:
         path: './dist'
-
-  deploy:
-    name: Deploy
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
     
-    steps:
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
