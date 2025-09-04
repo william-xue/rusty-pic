@@ -39,8 +39,8 @@ export default function Layout() {
                     key={item.name}
                     to={item.href}
                     className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive
-                        ? "bg-orange-100 text-orange-700"
-                        : "text-slate-600 hover:text-orange-600 hover:bg-orange-50"
+                      ? "bg-orange-100 text-orange-700"
+                      : "text-slate-600 hover:text-orange-600 hover:bg-orange-50"
                       }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -75,8 +75,8 @@ export default function Layout() {
                     key={item.name}
                     to={item.href}
                     className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${isActive
-                        ? "bg-orange-100 text-orange-700"
-                        : "text-slate-600 hover:text-orange-600 hover:bg-orange-50"
+                      ? "bg-orange-100 text-orange-700"
+                      : "text-slate-600 hover:text-orange-600 hover:bg-orange-50"
                       }`}
                   >
                     <Icon className="w-3 h-3" />
