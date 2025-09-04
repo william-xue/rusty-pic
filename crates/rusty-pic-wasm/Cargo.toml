@@ -11,11 +11,16 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 # 默认开启体积与性能优化，不强制安装 panic hook
-default = ["wee_alloc"]
+default = ["wee_alloc", "png"]
 # 可选功能：启用更友好的 panic 输出（开发调试用）
 console_error_panic_hook = ["dep:console_error_panic_hook"]
 # 可选功能：启用紧凑分配器（减小体积/分配开销）
 wee_alloc = ["dep:wee_alloc"]
+# 图片格式支持（传递给核心crate）
+png = ["rusty-pic-core/png"]
+jpeg = ["rusty-pic-core/jpeg"]
+webp = ["rusty-pic-core/webp"]
+avif = ["rusty-pic-core/avif"]
 
 [dependencies]
 wasm-bindgen = "0.2"
