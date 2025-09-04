@@ -2,69 +2,66 @@ import { useState } from "react";
 import { Code, Copy, Check, Package, Zap, Settings, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 
-const installExample = `npm install rusty-pic
+const installExample = `npm install @fe-fast/rusty-pic
 # 或者
-pnpm add rusty-pic
+pnpm add @fe-fast/rusty-pic
 # 或者
-yarn add rusty-pic`;
+yarn add @fe-fast/rusty-pic`;
 
-const basicUsageExample = `import { compressImage } from 'rusty-pic';
+const basicUsageExample = `import { compress } from '@fe-fast/rusty-pic';
 
 // 压缩单个文件
 const file = document.getElementById('fileInput').files[0];
-const result = await compressImage(file, {
+const result = await compress(file, {
   quality: 80,
-  format: 'webp',
-  mode: 'balanced'
+  format: 'webp'
 });
 
 console.log('原始大小:', result.originalSize);
 console.log('压缩后大小:', result.compressedSize);
 console.log('压缩率:', result.compressionRatio);
 
-// 下载压缩后的文件
-const url = URL.createObjectURL(result.blob);
+// 创建下载链接
+const blob = new Blob([result.data], { type: 'image/webp' });
+const url = URL.createObjectURL(blob);
 const a = document.createElement('a');
 a.href = url;
 a.download = 'compressed.webp';
 a.click();`;
 
-const advancedExample = `import { compressImage, batchCompress, getOptimalFormat } from 'rusty-pic';
+const advancedExample = `import { compress, compressBatch, smartCompress } from '@fe-fast/rusty-pic';
 
 // 批量压缩
 const files = Array.from(document.getElementById('fileInput').files);
-const results = await batchCompress(files, {
+const results = await compressBatch(files, {
   quality: 85,
-  format: 'auto', // 自动选择最优格式
-  mode: 'aggressive',
-  maxWidth: 1920,
-  maxHeight: 1080,
-  preserveMetadata: false
+  format: 'auto' // 自动选择最优格式
+}, (progress) => {
+  console.log(\`进度: \${progress.completed}/\${progress.total}\`);
 });
 
-// 获取最优格式建议
-const optimalFormat = await getOptimalFormat(file);
-console.log('推荐格式:', optimalFormat);
+// 智能压缩 - 自动选择最佳参数
+const smartResult = await smartCompress(file, 100 * 1024); // 目标大小 100KB
+console.log('智能压缩结果:', smartResult);
 
 // 自定义压缩配置
-const customResult = await compressImage(file, {
+const customResult = await compress(file, {
   quality: 90,
   format: 'webp',
-  mode: 'conservative',
   resize: {
     width: 800,
     height: 600,
     fit: 'cover'
   },
-  watermark: {
-    text: 'Compressed by Rusty-Pic',
-    position: 'bottom-right',
-    opacity: 0.5
+  optimize: {
+    colors: true,
+    progressive: true,
+    lossless: false
   }
 });`;
 
 const reactExample = `import React, { useState, useCallback } from 'react';
-import { compressImage } from 'rusty-pic';
+import { compress } from '@fe-fast/rusty-pic';
 
 function ImageCompressor() {
   const [file, setFile] = useState(null);
@@ -80,10 +77,9 @@ function ImageCompressor() {
     
     setIsProcessing(true);
     try {
-      const compressed = await compressImage(file, {
+      const compressed = await compress(file, {
         quality: 80,
-        format: 'webp',
-        mode: 'balanced'
+        format: 'webp'
       });
       setResult(compressed);
     } catch (error) {
@@ -111,114 +107,129 @@ function ImageCompressor() {
 }`;
 
 const nodeExample = `// Node.js 环境使用
-const fs = require('fs');
-const { compressImageBuffer } = require('rusty-pic/node');
+import fs from 'fs';
+import { compress } from '@fe-fast/rusty-pic';
 
 // 读取文件
 const imageBuffer = fs.readFileSync('./input.jpg');
 
 // 压缩
-const result = await compressImageBuffer(imageBuffer, {
+const result = await compress(imageBuffer, {
   quality: 75,
-  format: 'webp',
-  mode: 'aggressive'
+  format: 'webp'
 });
 
 // 保存结果
-fs.writeFileSync('./output.webp', result.buffer);
-console.log('压缩完成，节省了', result.savedBytes, '字节');`;
+fs.writeFileSync('./output.webp', result.data);
+console.log('压缩完成，节省了', result.originalSize - result.compressedSize, '字节');
+console.log('压缩率:', result.compressionRatio.toFixed(1) + '%');`;
 
 const typeDefinitions = `interface CompressionOptions {
+  format?: 'webp' | 'jpeg' | 'png' | 'avif' | 'auto'; // 默认 'auto'
   quality?: number; // 1-100, 默认 80
-  format?: 'webp' | 'jpeg' | 'png' | 'auto'; // 默认 'auto'
-  mode?: 'conservative' | 'balanced' | 'aggressive'; // 默认 'balanced'
-  maxWidth?: number; // 最大宽度
-  maxHeight?: number; // 最大高度
-  preserveMetadata?: boolean; // 是否保留元数据，默认 false
   resize?: {
     width?: number;
     height?: number;
-    fit?: 'cover' | 'contain' | 'fill' | 'inside' | 'outside';
+    fit?: 'cover' | 'contain' | 'fill';
   };
-  watermark?: {
-    text?: string;
-    image?: string | Blob;
-    position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
-    opacity?: number; // 0-1
+  optimize?: {
+    colors?: boolean; // 颜色优化
+    progressive?: boolean; // 渐进式编码
+    lossless?: boolean; // 无损压缩
   };
 }
 
 interface CompressionResult {
-  blob: Blob; // 压缩后的文件
+  data: Uint8Array; // 压缩后的数据
   originalSize: number; // 原始文件大小（字节）
   compressedSize: number; // 压缩后大小（字节）
   compressionRatio: number; // 压缩率（百分比）
-  format: string; // 输出格式
   processingTime: number; // 处理时间（毫秒）
+  format: string; // 输出格式
   metadata?: {
     width: number;
     height: number;
-    hasAlpha: boolean;
-    colorSpace: string;
+    colorType: string;
+    bitDepth: number;
   };
 }
 
+interface BatchProgress {
+  completed: number;
+  total: number;
+  currentFile?: string;
+  errors: Array<{
+    file: string;
+    error: string;
+  }>;
+}
+
+type ProgressCallback = (progress: BatchProgress) => void;
+
 // 主要 API 函数
-declare function compressImage(
-  file: File | Blob,
+declare function compress(
+  input: File | Uint8Array | ArrayBuffer,
   options?: CompressionOptions
 ): Promise<CompressionResult>;
 
-declare function batchCompress(
-  files: (File | Blob)[],
-  options?: CompressionOptions
+declare function compressBatch(
+  files: File[],
+  options?: CompressionOptions,
+  onProgress?: ProgressCallback
 ): Promise<CompressionResult[]>;
 
-declare function getOptimalFormat(
-  file: File | Blob
-): Promise<'webp' | 'jpeg' | 'png'>;
+declare function smartCompress(
+  input: File | Uint8Array | ArrayBuffer,
+  targetSize?: number
+): Promise<CompressionResult>;
 
-declare function estimateCompressionSize(
-  file: File | Blob,
-  options?: CompressionOptions
-): Promise<number>;`;
+// RustyPic 类
+declare class RustyPic {
+  init(): Promise<void>;
+  compress(input: File | Uint8Array | ArrayBuffer, options?: CompressionOptions): Promise<CompressionResult>;
+  compressBatch(files: File[], options?: CompressionOptions, onProgress?: ProgressCallback): Promise<CompressionResult[]>;
+  smartCompress(input: File | Uint8Array | ArrayBuffer, targetSize?: number): Promise<CompressionResult>;
+  getSupportedFormats(): string[];
+  isInitialized(): boolean;
+  getVersion(): string;
+}`;
 
 const apiMethods = [
   {
-    name: "compressImage",
-    signature: "(file: File | Blob, options?: CompressionOptions) => Promise<CompressionResult>",
+    name: "compress",
+    signature: "(input: File | Uint8Array | ArrayBuffer, options?: CompressionOptions) => Promise<CompressionResult>",
     description: "压缩单个图片文件",
-    example: "const result = await compressImage(file, { quality: 80 });"
+    example: "const result = await compress(file, { quality: 80 });"
   },
   {
-    name: "batchCompress",
-    signature: "(files: (File | Blob)[], options?: CompressionOptions) => Promise<CompressionResult[]>",
+    name: "compressBatch",
+    signature: "(files: File[], options?: CompressionOptions, onProgress?: ProgressCallback) => Promise<CompressionResult[]>",
     description: "批量压缩多个图片文件",
-    example: "const results = await batchCompress(files, { format: 'webp' });"
+    example: "const results = await compressBatch(files, { format: 'webp' });"
   },
   {
-    name: "getOptimalFormat",
-    signature: "(file: File | Blob) => Promise<'webp' | 'jpeg' | 'png'>",
-    description: "获取图片的最优压缩格式建议",
-    example: "const format = await getOptimalFormat(file);"
+    name: "smartCompress",
+    signature: "(input: File | Uint8Array | ArrayBuffer, targetSize?: number) => Promise<CompressionResult>",
+    description: "智能压缩 - 自动选择最佳参数",
+    example: "const result = await smartCompress(file, 100 * 1024);"
   },
   {
-    name: "estimateCompressionSize",
-    signature: "(file: File | Blob, options?: CompressionOptions) => Promise<number>",
-    description: "估算压缩后的文件大小",
-    example: "const size = await estimateCompressionSize(file, { quality: 70 });"
-  },
-  {
-    name: "getSupportedFormats",
+    name: "RustyPic.getSupportedFormats",
     signature: "() => string[]",
     description: "获取支持的图片格式列表",
-    example: "const formats = getSupportedFormats(); // ['jpeg', 'png', 'webp', 'avif']"
+    example: "const formats = rustyPic.getSupportedFormats(); // ['webp', 'jpeg', 'png', 'avif']"
   },
   {
-    name: "getVersion",
+    name: "RustyPic.getVersion",
     signature: "() => string",
     description: "获取当前版本号",
-    example: "const version = getVersion(); // '1.0.0'"
+    example: "const version = rustyPic.getVersion(); // '0.1.2'"
+  },
+  {
+    name: "RustyPic.isInitialized",
+    signature: "() => boolean",
+    description: "检查 WASM 模块是否已初始化",
+    example: "const initialized = rustyPic.isInitialized();"
   }
 ];
 
@@ -260,6 +271,17 @@ export default function API() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Release Status */}
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-8">
+        <div className="flex items-center justify-center">
+          <div className="flex items-center text-green-800">
+            <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+            <span className="font-medium">🎉 已发布到 npm!</span>
+            <code className="ml-2 bg-green-100 px-2 py-1 rounded text-sm">@fe-fast/rusty-pic@0.1.2</code>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="text-center mb-12">
         <div className="flex justify-center mb-4">
@@ -377,7 +399,7 @@ export default function API() {
         <h2 className="text-2xl font-bold text-slate-900 mb-6">
           错误处理
         </h2>
-        <CodeBlock 
+        <CodeBlock
           code={`try {
   const result = await compressImage(file, options);
   console.log('压缩成功:', result);
@@ -413,7 +435,7 @@ export default function API() {
               <li>• 大文件建议先调用 <code className="bg-blue-100 px-1 rounded">estimateCompressionSize</code></li>
             </ul>
           </div>
-          
+
           <div className="bg-green-50 border border-green-200 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-green-900 mb-3">
               💡 内存管理

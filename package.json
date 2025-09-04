@@ -1,13 +1,70 @@
 {
-  "name": "rusty-pic",
-  "private": true,
-  "version": "0.0.0",
+  "name": "@fe-fast/rusty-pic",
+  "version": "0.3.1",
+  "description": "🚀 高性能图片压缩工具，基于 Rust + WebAssembly 构建",
   "type": "module",
+  "main": "./dist/lib/rusty-pic.js",
+  "module": "./dist/lib/rusty-pic.js",
+  "types": "./dist/lib/rusty-pic.d.ts",
+  "bin": {
+    "rusty-pic": "./dist/cli/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/lib/rusty-pic.js",
+      "types": "./dist/lib/rusty-pic.d.ts"
+    },
+    "./wasm": {
+      "import": "./pkg/rusty_pic_wasm.js",
+      "types": "./pkg/rusty_pic_wasm.d.ts"
+    },
+    "./vite": {
+      "import": "./dist/vite-plugin/index.js",
+      "types": "./dist/vite-plugin/index.d.ts"
+    },
+    "./next": {
+      "import": "./dist/vite-plugin/next.js",
+      "require": "./dist/vite-plugin/next.js"
+    },
+    "./webpack": {
+      "import": "./dist/vite-plugin/webpack.js",
+      "require": "./dist/vite-plugin/webpack.js"
+    }
+  },
+  "files": [
+    "dist",
+    "pkg",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "image",
+    "compression",
+    "webp",
+    "jpeg",
+    "png",
+    "avif",
+    "rust",
+    "wasm",
+    "webassembly",
+    "optimization"
+  ],
+  "author": "fe-fast",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fe-fast/rusty-pic.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fe-fast/rusty-pic/issues"
+  },
+  "homepage": "https://github.com/fe-fast/rusty-pic#readme",
   "scripts": {
     "dev": "vite",
-    "build": "pnpm run build:wasm && tsc -b && vite build",
-    "build:wasm": "export PATH=\"$HOME/.cargo/bin:$PATH\" && wasm-pack build --target web --out-dir pkg crates/rusty-pic-wasm",
-    "build:cli": "tsc src/cli/index.ts --outDir dist/cli --target es2020 --module commonjs",
+    "build": "pnpm run build:wasm && pnpm run build:lib && vite build",
+    "build:wasm": "export PATH=\"$HOME/.cargo/bin:$PATH\" && wasm-pack build --target web --out-dir ../../pkg crates/rusty-pic-wasm && rm -f pkg/.gitignore",
+    "build:lib": "mkdir -p dist/lib dist/vite-plugin dist/cli && cp src/lib/rusty-pic.js dist/lib/ && cp -r src/vite-plugin/* dist/vite-plugin/ && node build-cli-fixed.cjs",
+    "prepublishOnly": "pnpm run build:wasm && pnpm run build:lib",
     "build:packages": "pnpm -r --filter './packages/*' run build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -25,10 +82,11 @@
     "clean": "rm -rf dist pkg target node_modules/.cache packages/*/dist",
     "cli": "node dist/cli/index.js"
   },
-  "bin": {
-    "rusty-pic": "./dist/cli/index.js"
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
+    "@rollup/pluginutils": "^5.1.0",
     "clsx": "^2.1.1",
     "commander": "^12.1.0",
     "lucide-react": "^0.511.0",

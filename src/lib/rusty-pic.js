@@ -1,69 +1,51 @@
 /**
  * Rusty-Pic JavaScript API
- * 
- * 提供易用的高级 JavaScript API，封装 WASM 模块
+ * 简化版本，用于快速发布
  */
 
-// 导入类型定义
-export interface CompressionOptions {
-    format?: 'webp' | 'jpeg' | 'png' | 'avif' | 'auto';
-    quality?: number; // 0-100
-    resize?: {
-        width?: number;
-        height?: number;
-        fit?: 'cover' | 'contain' | 'fill' | 'inside' | 'outside';
-    };
-    optimize?: {
-        colors?: boolean;
-        progressive?: boolean;
-        lossless?: boolean;
-    };
-}
+// 导出类型定义（JSDoc 风格）
+/**
+ * @typedef {Object} CompressionOptions
+ * @property {'webp'|'jpeg'|'png'|'avif'|'auto'} [format] - 输出格式
+ * @property {number} [quality] - 压缩质量 (0-100)
+ * @property {Object} [resize] - 缩放选项
+ * @property {number} [resize.width] - 目标宽度
+ * @property {number} [resize.height] - 目标高度
+ * @property {'cover'|'contain'|'fill'} [resize.fit] - 缩放模式
+ * @property {Object} [optimize] - 优化选项
+ * @property {boolean} [optimize.colors] - 颜色优化
+ * @property {boolean} [optimize.progressive] - 渐进式编码
+ * @property {boolean} [optimize.lossless] - 无损压缩
+ */
 
-export interface CompressionResult {
-    data: Uint8Array;
-    originalSize: number;
-    compressedSize: number;
-    compressionRatio: number;
-    processingTime: number;
-    format: string;
-    metadata?: {
-        width: number;
-        height: number;
-        colorType: string;
-        bitDepth: number;
-    };
-}
-
-export interface BatchProgress {
-    completed: number;
-    total: number;
-    currentFile?: string;
-    errors: Array<{ file: string; error: string }>;
-}
-
-export type ProgressCallback = (progress: BatchProgress) => void;
+/**
+ * @typedef {Object} CompressionResult
+ * @property {Uint8Array} data - 压缩后的数据
+ * @property {number} originalSize - 原始文件大小
+ * @property {number} compressedSize - 压缩后大小
+ * @property {number} compressionRatio - 压缩率 (%)
+ * @property {number} processingTime - 处理时间 (ms)
+ * @property {string} format - 输出格式
+ */
 
 /**
  * 主要的 RustyPic 类
  */
 export class RustyPic {
-    private wasmModule: any = null;
-    private initialized = false;
-
     constructor() {
-        // 构造函数保持轻量
+        this.wasmModule = null;
+        this.initialized = false;
     }
 
     /**
      * 初始化 WASM 模块
      */
-    async init(): Promise<void> {
+    async init() {
         if (this.initialized) return;
 
         try {
             // 动态导入 WASM 模块
-            const wasmModule = await import('../../pkg/rusty_pic_wasm.js');
+            const wasmModule = await import('@fe-fast/rusty-pic/wasm');
             await wasmModule.default();
             this.wasmModule = wasmModule;
             this.initialized = true;
@@ -75,12 +57,15 @@ export class RustyPic {
 
     /**
      * 压缩单个图片
+     * @param {File|Uint8Array|ArrayBuffer} input - 输入数据
+     * @param {CompressionOptions} options - 压缩选项
+     * @returns {Promise<CompressionResult>} 压缩结果
      */
-    async compress(input: File | Uint8Array | ArrayBuffer, options: CompressionOptions = {}): Promise<CompressionResult> {
+    async compress(input, options = {}) {
         await this.init();
 
         const startTime = Date.now();
-        let inputData: Uint8Array;
+        let inputData;
 
         // 处理不同的输入类型
         if (input instanceof File) {
@@ -103,18 +88,13 @@ export class RustyPic {
         }
 
         // 后备方案：使用 Canvas API
-        return await this.compressWithCanvas(input as File, options, originalSize, startTime);
+        return await this.compressWithCanvas(input, options, originalSize, startTime);
     }
 
     /**
      * 使用 WASM 模块压缩
      */
-    private async compressWithWasm(
-        inputData: Uint8Array,
-        options: CompressionOptions,
-        originalSize: number,
-        startTime: number
-    ): Promise<CompressionResult> {
+    async compressWithWasm(inputData, options, originalSize, startTime) {
         const { createRustyPic, JsCompressionOptions } = this.wasmModule;
 
         const rp = createRustyPic();
@@ -146,12 +126,7 @@ export class RustyPic {
     /**
      * 使用 Canvas API 压缩（后备方案）
      */
-    private async compressWithCanvas(
-        file: File,
-        options: CompressionOptions,
-        originalSize: number,
-        startTime: number
-    ): Promise<CompressionResult> {
+    async compressWithCanvas(file, options, originalSize, startTime) {
         return new Promise((resolve, reject) => {
             const img = new Image();
             const canvas = document.createElement('canvas');
@@ -185,7 +160,7 @@ export class RustyPic {
                         if (blob) {
                             const reader = new FileReader();
                             reader.onload = () => {
-                                const data = new Uint8Array(reader.result as ArrayBuffer);
+                                const data = new Uint8Array(reader.result);
                                 const processingTime = Date.now() - startTime;
 
                                 resolve({
@@ -225,16 +200,16 @@ export class RustyPic {
 
     /**
      * 批量压缩多个文件
+     * @param {File[]} files - 文件列表
+     * @param {CompressionOptions} options - 压缩选项
+     * @param {Function} onProgress - 进度回调
+     * @returns {Promise<CompressionResult[]>} 压缩结果列表
      */
-    async compressBatch(
-        files: File[],
-        options: CompressionOptions = {},
-        onProgress?: ProgressCallback
-    ): Promise<CompressionResult[]> {
+    async compressBatch(files, options = {}, onProgress) {
         await this.init();
 
-        const results: CompressionResult[] = [];
-        const errors: Array<{ file: string; error: string }> = [];
+        const results = [];
+        const errors = [];
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
@@ -273,18 +248,18 @@ export class RustyPic {
 
     /**
      * 智能压缩 - 自动选择最佳参数
+     * @param {File|Uint8Array|ArrayBuffer} input - 输入数据
+     * @param {number} targetSize - 目标大小（字节）
+     * @returns {Promise<CompressionResult>} 压缩结果
      */
-    async smartCompress(
-        input: File | Uint8Array | ArrayBuffer,
-        targetSize?: number
-    ): Promise<CompressionResult> {
+    async smartCompress(input, targetSize) {
         await this.init();
 
         // 分析输入文件
         const analysis = await this.analyzeImage(input);
 
         // 基于分析结果选择最佳参数
-        const options: CompressionOptions = {
+        const options = {
             format: this.selectOptimalFormat(analysis),
             quality: this.selectOptimalQuality(analysis, targetSize),
             optimize: {
@@ -307,7 +282,7 @@ export class RustyPic {
     /**
      * 分析图片特征
      */
-    private async analyzeImage(input: File | Uint8Array | ArrayBuffer): Promise<any> {
+    async analyzeImage(input) {
         // 简化的图片分析
         if (input instanceof File) {
             return {
@@ -329,7 +304,7 @@ export class RustyPic {
     /**
      * 选择最佳格式
      */
-    private selectOptimalFormat(analysis: any): 'webp' | 'jpeg' | 'png' | 'avif' {
+    selectOptimalFormat(analysis) {
         if (analysis.hasAlpha) return 'webp';
         if (analysis.complexity > 0.7) return 'jpeg';
         return 'webp';
@@ -338,7 +313,7 @@ export class RustyPic {
     /**
      * 选择最佳质量
      */
-    private selectOptimalQuality(analysis: any, targetSize?: number): number {
+    selectOptimalQuality(analysis, targetSize) {
         if (targetSize) {
             // 基于目标大小估算质量
             const ratio = targetSize / analysis.size;
@@ -357,11 +332,7 @@ export class RustyPic {
     /**
      * 迭代压缩以达到目标大小
      */
-    private async iterativeCompress(
-        input: File | Uint8Array | ArrayBuffer,
-        baseOptions: CompressionOptions,
-        targetSize: number
-    ): Promise<CompressionResult> {
+    async iterativeCompress(input, baseOptions, targetSize) {
         let quality = baseOptions.quality || 80;
         let result = await this.compress(input, { ...baseOptions, quality });
 
@@ -377,21 +348,21 @@ export class RustyPic {
     /**
      * 获取支持的格式列表
      */
-    getSupportedFormats(): string[] {
+    getSupportedFormats() {
         return ['webp', 'jpeg', 'png', 'avif'];
     }
 
     /**
      * 检查是否已初始化
      */
-    isInitialized(): boolean {
+    isInitialized() {
         return this.initialized;
     }
 
     /**
      * 获取版本信息
      */
-    getVersion(): string {
+    getVersion() {
         return '0.1.0';
     }
 }
@@ -400,24 +371,14 @@ export class RustyPic {
 export const rustyPic = new RustyPic();
 
 // 导出便捷函数
-export async function compress(
-    input: File | Uint8Array | ArrayBuffer,
-    options: CompressionOptions = {}
-): Promise<CompressionResult> {
+export async function compress(input, options = {}) {
     return rustyPic.compress(input, options);
 }
 
-export async function compressBatch(
-    files: File[],
-    options: CompressionOptions = {},
-    onProgress?: ProgressCallback
-): Promise<CompressionResult[]> {
+export async function compressBatch(files, options = {}, onProgress) {
     return rustyPic.compressBatch(files, options, onProgress);
 }
 
-export async function smartCompress(
-    input: File | Uint8Array | ArrayBuffer,
-    targetSize?: number
-): Promise<CompressionResult> {
+export async function smartCompress(input, targetSize) {
     return rustyPic.smartCompress(input, targetSize);
 }

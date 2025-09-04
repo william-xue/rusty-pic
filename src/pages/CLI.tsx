@@ -5,17 +5,17 @@ import { toast } from "sonner";
 const installCommands = [
   {
     title: "使用 npm 安装",
-    command: "npm install -g rusty-pic-cli",
+    command: "npm install -g @fe-fast/rusty-pic",
     description: "全局安装 CLI 工具"
   },
   {
     title: "使用 pnpm 安装",
-    command: "pnpm add -g rusty-pic-cli",
+    command: "pnpm add -g @fe-fast/rusty-pic",
     description: "推荐使用 pnpm 安装"
   },
   {
     title: "使用 npx 运行",
-    command: "npx rusty-pic-cli",
+    command: "npx @fe-fast/rusty-pic",
     description: "无需安装直接使用"
   }
 ];
@@ -23,33 +23,33 @@ const installCommands = [
 const usageExamples = [
   {
     title: "基础压缩",
-    command: "rusty-pic compress ./images --output ./compressed",
-    description: "压缩指定目录下的所有图片"
+    command: "rusty-pic compress ./image.jpg --output ./compressed.webp",
+    description: "压缩单个图片文件"
   },
   {
-    title: "指定格式",
-    command: "rusty-pic compress ./images --format webp --quality 80",
+    title: "指定格式和质量",
+    command: "rusty-pic compress ./image.jpg --format webp --quality 80",
     description: "转换为 WebP 格式，质量设为 80%"
   },
   {
-    title: "激进压缩",
-    command: "rusty-pic compress ./images --mode aggressive --output ./tiny",
-    description: "使用激进模式获得最大压缩率"
+    title: "智能压缩",
+    command: "rusty-pic smart ./image.jpg --size 100000",
+    description: "智能压缩到指定文件大小（100KB）"
   },
   {
     title: "批量处理",
     command: "rusty-pic batch ./src/assets --recursive --format auto",
-    description: "递归处理目录，自动选择最优格式"
+    description: "递归处理目录，自动选择最优格式（开发中）"
   },
   {
     title: "尺寸调整",
-    command: "rusty-pic resize ./images --width 1920 --height 1080 --fit cover",
+    command: "rusty-pic compress ./image.jpg --width 1920 --height 1080",
     description: "调整图片尺寸并压缩"
   },
   {
-    title: "配置文件",
-    command: "rusty-pic compress --config ./rusty-pic.config.json",
-    description: "使用配置文件批量处理"
+    title: "图片信息",
+    command: "rusty-pic info ./image.jpg",
+    description: "显示图片详细信息"
   }
 ];
 
@@ -174,7 +174,115 @@ export default function CLI() {
         <p className="text-lg text-slate-600 max-w-2xl mx-auto">
           强大的命令行界面，支持批量处理、自动化脚本和 CI/CD 集成。
         </p>
+        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg max-w-2xl mx-auto">
+          <p className="text-sm text-green-800">
+            ✅ <strong>已发布</strong>: CLI 工具已在 v0.3.0 版本发布！现在可以通过 npm 安装使用。
+          </p>
+        </div>
       </div>
+
+      {/* Status Notice */}
+      <div className="mb-8 p-6 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
+        <div className="flex items-start space-x-3">
+          <div className="flex-shrink-0">
+            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-bold">✓</span>
+            </div>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-green-900 mb-2">CLI 工具已发布</h3>
+            <p className="text-green-800 mb-3">
+              CLI 工具已在 <strong>v0.3.0</strong> 版本正式发布！
+              支持单文件压缩、智能压缩和图片信息查看功能。批量处理功能正在开发中。
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <span className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">✅ CLI 工具可用</span>
+              <span className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">✅ JavaScript API 可用</span>
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">📦 v0.3.0 已发布</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Feature Status */}
+      <section className="mb-12">
+        <h2 className="text-2xl font-bold text-slate-900 mb-6">
+          功能状态
+        </h2>
+        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    功能
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    状态
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    命令
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-slate-200">
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                    单文件压缩
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                      ✅ 可用
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                    <code>compress</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                    智能压缩
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                      ✅ 可用
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                    <code>smart</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                    图片信息
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                      ✅ 可用
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                    <code>info</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                    批量处理
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+                      🚧 开发中
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                    <code>batch</code>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
       {/* Installation */}
       <section className="mb-12">
@@ -301,7 +409,7 @@ export default function CLI() {
               <li>• 在 CI/CD 中使用 <code className="bg-blue-100 px-1 rounded">--verbose</code> 查看详细日志</li>
             </ul>
           </div>
-          
+
           <div className="bg-green-50 border border-green-200 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-green-900 mb-3">
               💡 质量与大小平衡
@@ -313,6 +421,37 @@ export default function CLI() {
               <li>• 缩略图可降低到 <code className="bg-green-100 px-1 rounded">--quality 60</code></li>
             </ul>
           </div>
+        </div>
+      </section>
+
+      {/* JavaScript API */}
+      <section className="mb-12">
+        <h2 className="text-2xl font-bold text-slate-900 mb-6">
+          🔧 JavaScript API 使用
+        </h2>
+        <p className="text-slate-600 mb-4">
+          除了 CLI 工具，您也可以在 Node.js 项目中直接使用 JavaScript API：
+        </p>
+        <div className="bg-slate-900 rounded-lg p-6">
+          <pre className="text-sm text-slate-300 overflow-x-auto">
+            <code>{`// 安装 JavaScript API
+npm install @fe-fast/rusty-pic
+
+// 使用示例
+import { compress } from '@fe-fast/rusty-pic';
+import { readFile, writeFile } from 'fs/promises';
+
+// 压缩图片
+const inputBuffer = await readFile('input.jpg');
+const result = await compress(inputBuffer, {
+    format: 'webp',
+    quality: 80
+});
+
+// 保存结果
+await writeFile('output.webp', result.data);
+console.log(\`压缩率: \${result.compressionRatio.toFixed(1)}%\`);`}</code>
+          </pre>
         </div>
       </section>
 
@@ -330,15 +469,15 @@ export default function CLI() {
               <pre className="text-sm text-slate-300">
                 <code>{`{
   "scripts": {
-    "build:images": "rusty-pic compress ./src/assets --output ./dist/assets",
-    "optimize:images": "rusty-pic batch ./public/images --recursive --format auto",
-    "compress:prod": "rusty-pic compress ./images --mode aggressive --config ./prod.config.json"
+    "compress:image": "rusty-pic compress ./src/assets/hero.jpg --format webp",
+    "optimize:logo": "rusty-pic smart ./public/logo.png --size 50000",
+    "info:image": "rusty-pic info ./src/assets/banner.jpg"
   }
 }`}</code>
               </pre>
             </div>
           </div>
-          
+
           <div className="bg-white border border-slate-200 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-slate-900 mb-3">
               🔄 GitHub Actions 集成
@@ -358,8 +497,8 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
-      - run: npm install -g rusty-pic-cli
-      - run: rusty-pic compress ./src/assets --output ./optimized
+      - run: npm install -g @fe-fast/rusty-pic
+      - run: rusty-pic compress ./src/assets/hero.jpg --format webp
       - uses: actions/upload-artifact@v3
         with:
           name: optimized-images

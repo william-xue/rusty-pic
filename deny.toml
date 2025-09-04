@@ -1,0 +1,89 @@
+# cargo-deny 配置文件
+# 用于 Rust 依赖安全审计和许可证检查
+
+[graph]
+# 如果为 true，则会检查所有目标平台的依赖
+all-features = false
+# 要检查的目标平台
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+    "x86_64-apple-darwin",
+    "wasm32-unknown-unknown",
+]
+
+[output]
+# 输出格式：human, json
+feature-depth = 1
+
+[advisories]
+# 安全漏洞数据库 URL
+db-urls = ["https://github.com/rustsec/advisory-db"]
+# 漏洞严重程度阈值
+vulnerability = "deny"
+# 未维护的包
+unmaintained = "warn"
+# 已弃用的包
+unsound = "warn"
+# 被撤回的包
+yanked = "warn"
+# 忽略的漏洞 ID（如果需要）
+ignore = [
+    # "RUSTSEC-0000-0000",
+]
+
+[licenses]
+# 许可证检查
+unlicensed = "deny"
+# 允许的许可证
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016",
+]
+# 拒绝的许可证
+deny = [
+    "GPL-2.0",
+    "GPL-3.0",
+    "AGPL-1.0",
+    "AGPL-3.0",
+]
+# 需要信心度的许可证
+copyleft = "warn"
+# 允许的例外情况
+allow-osi-fsf-free = "neither"
+# 默认许可证信心度
+default = "deny"
+confidence-threshold = 0.8
+
+[bans]
+# 多个版本的同一个包
+multiple-versions = "warn"
+# 通配符依赖
+wildcards = "allow"
+# 禁用的包
+deny = [
+    # { name = "openssl", version = "*" },
+]
+# 跳过的包
+skip = [
+    # { name = "winapi", version = "=0.2.8" },
+]
+# 跳过树
+skip-tree = [
+    # { name = "windows-sys", version = "=0.45.0", depth = 20 },
+]
+
+[sources]
+# 未知注册表
+unknown-registry = "warn"
+# 未知 Git 仓库
+unknown-git = "warn"
+# 允许的注册表
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# 允许的 Git 仓库
+allow-git = []

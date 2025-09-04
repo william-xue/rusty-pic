@@ -5,15 +5,15 @@ const quickStartSteps = [
   {
     title: "安装 Rusty-Pic",
     description: "通过 npm 安装核心包",
-    code: "npm install rusty-pic",
+    code: "npm install @fe-fast/rusty-pic",
     icon: "📦"
   },
   {
     title: "基础使用",
     description: "压缩单个图片文件",
-    code: `import { compressImage } from 'rusty-pic';
+    code: `import { compress } from '@fe-fast/rusty-pic';
 
-const result = await compressImage(file, {
+const result = await compress(file, {
   quality: 80,
   format: 'webp'
 });`,
@@ -22,17 +22,18 @@ const result = await compressImage(file, {
   {
     title: "批量处理",
     description: "同时压缩多个图片",
-    code: `const results = await compressBatch(files, {
-  quality: 75,
-  mode: 'balanced'
+    code: `import { compressBatch } from '@fe-fast/rusty-pic';
+
+const results = await compressBatch(files, {
+  quality: 75
 });`,
     icon: "⚡"
   },
   {
     title: "集成到构建流程",
-    description: "使用 Vite 插件自动化",
+    description: "使用 Vite 插件自动化（即将发布）",
     code: `// vite.config.js
-import { rustyPic } from 'vite-plugin-rusty-pic';
+import { rustyPic } from '@fe-fast/vite-plugin-rusty-pic';
 
 export default defineConfig({
   plugins: [rustyPic({ quality: 80 })]
@@ -120,13 +121,13 @@ const resources = [
   {
     title: "GitHub 仓库",
     description: "源代码、问题反馈和贡献",
-    url: "https://github.com/username/rusty-pic",
+    url: "https://github.com/fe-fast/rusty-pic",
     icon: <Github className="w-5 h-5" />
   },
   {
     title: "npm 包页面",
     description: "包信息、版本历史和下载统计",
-    url: "https://www.npmjs.com/package/rusty-pic",
+    url: "https://www.npmjs.com/package/@fe-fast/rusty-pic",
     icon: "📦"
   },
   {
@@ -136,9 +137,9 @@ const resources = [
     icon: "🎮"
   },
   {
-    title: "性能测试报告",
-    description: "与其他工具的详细对比",
-    url: "#",
+    title: "使用示例",
+    description: "详细的代码示例和最佳实践",
+    url: "/api",
     icon: "📊"
   }
 ];
@@ -146,11 +147,11 @@ const resources = [
 const faqs = [
   {
     question: "Rusty-Pic 与其他图片压缩工具有什么区别？",
-    answer: "Rusty-Pic 基于 Rust + WebAssembly 构建，具有更小的包体积（<2MB）、更快的处理速度和更好的压缩效果。相比 Sharp 更轻量，比 imagemin 更现代，比 Squoosh 更适合工作流集成。"
+    answer: "Rusty-Pic 基于 Rust + WebAssembly 构建，具有更小的包体积（157KB）、更快的处理速度和更好的跨平台兼容性。相比 Sharp 更轻量，比 imagemin 更现代，比 Squoosh 更适合工作流集成。"
   },
   {
     question: "支持哪些图片格式？",
-    answer: "输入格式支持 PNG、JPEG、WebP、GIF、BMP、TIFF 等常见格式。输出格式支持 PNG、JPEG、WebP、AVIF，可以自动选择最优格式或手动指定。"
+    answer: "输入格式支持 PNG、JPEG、WebP 等常见格式。输出格式支持 PNG、JPEG、WebP、AVIF，可以自动选择最优格式或手动指定。"
   },
   {
     question: "如何在 Node.js 环境中使用？",
@@ -158,15 +159,15 @@ const faqs = [
   },
   {
     question: "压缩质量如何控制？",
-    answer: "提供 quality (1-100)、mode (conservative/balanced/aggressive) 两个维度的控制。quality 控制压缩强度，mode 控制算法策略，可以根据需求灵活调整。"
+    answer: "提供 quality (1-100) 参数控制压缩强度，format 参数选择输出格式，optimize 对象控制具体的优化策略，可以根据需求灵活调整。"
   },
   {
     question: "是否支持批量处理？",
-    answer: "支持。提供 compressBatch() API 用于批量处理，CLI 工具支持目录批量压缩，Vite 插件可以自动处理项目中的所有图片资源。"
+    answer: "支持。提供 compressBatch() API 用于批量处理，支持进度回调。CLI 工具和 Vite 插件也将支持批量处理功能。"
   },
   {
-    question: "如何处理大文件？",
-    answer: "Rusty-Pic 针对大文件进行了优化，支持流式处理和内存管理。对于超大文件，建议先进行尺寸调整再压缩，或者使用分块处理策略。"
+    question: "WASM 模块加载失败怎么办？",
+    answer: "Rusty-Pic 内置了 Canvas API 作为后备方案。当 WASM 模块加载失败时，会自动降级到 Canvas API，确保功能的可用性。"
   }
 ];
 
@@ -181,6 +182,24 @@ export default function Docs() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Release Status */}
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-8">
+        <div className="flex items-center justify-center">
+          <div className="flex items-center text-green-800">
+            <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+            <span className="font-medium">🎉 v0.1.2 已发布!</span>
+            <a
+              href="https://www.npmjs.com/package/@fe-fast/rusty-pic"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-2 bg-green-100 hover:bg-green-200 px-2 py-1 rounded text-sm transition-colors"
+            >
+              查看 npm 包
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="text-center mb-12">
         <div className="flex justify-center mb-4">
@@ -318,10 +337,9 @@ export default function Docs() {
                   <h3 className="text-lg font-semibold text-slate-900">
                     {faq.question}
                   </h3>
-                  <ChevronRight 
-                    className={`w-5 h-5 text-slate-400 transition-transform ${
-                      expandedFaq === index ? 'rotate-90' : ''
-                    }`} 
+                  <ChevronRight
+                    className={`w-5 h-5 text-slate-400 transition-transform ${expandedFaq === index ? 'rotate-90' : ''
+                      }`}
                   />
                 </div>
               </button>
@@ -347,7 +365,7 @@ export default function Docs() {
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <a
-            href="https://github.com/username/rusty-pic/issues"
+            href="https://github.com/fe-fast/rusty-pic/issues"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center px-6 py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
@@ -356,7 +374,7 @@ export default function Docs() {
             GitHub Issues
           </a>
           <a
-            href="https://github.com/username/rusty-pic/discussions"
+            href="https://github.com/fe-fast/rusty-pic/discussions"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -365,10 +383,12 @@ export default function Docs() {
             社区讨论
           </a>
           <a
-            href="mailto:support@rusty-pic.dev"
+            href="https://www.npmjs.com/package/@fe-fast/rusty-pic"
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
-            📧 邮件支持
+            📦 npm 包页面
           </a>
         </div>
       </section>

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { Upload, Download, Image as ImageIcon, Zap, BarChart3, Settings, X, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
-import { rustyPic, type CompressionOptions, type CompressionResult as RustyPicResult } from "@/lib/rusty-pic";
+import { rustyPic, type CompressionOptions, type CompressionResult as RustyPicResult } from "@fe-fast/rusty-pic";
 
 interface CompressedResult {
   originalFile: File;

@@ -9,7 +9,7 @@
 - **多格式支持**: 支持 PNG、JPEG、WebP、AVIF 格式
 - **智能压缩**: 自动格式选择和参数优化
 - **批量处理**: 支持多文件并行处理
-- **开发者友好**: 提供 npm 包、CLI 工具和 Vite 插件
+- **开发者友好**: 提供 npm 包、CLI 工具、Vite 插件和 Webpack 插件
 
 ## 🎯 核心优势
 
@@ -28,19 +28,19 @@
 
 ```bash
 # 使用 npm
-npm install rusty-pic
+npm install @fe-fast/rusty-pic
 
 # 使用 pnpm
-pnpm add rusty-pic
+pnpm add @fe-fast/rusty-pic
 
 # 使用 yarn
-yarn add rusty-pic
+yarn add @fe-fast/rusty-pic
 ```
 
 ### 基础使用
 
 ```typescript
-import { rustyPic } from 'rusty-pic';
+import { rustyPic } from '@fe-fast/rusty-pic';
 
 // 压缩单个文件
 const file = document.querySelector('input[type="file"]').files[0];
@@ -55,7 +55,7 @@ console.log(`压缩率: ${result.compressionRatio.toFixed(1)}%`);
 ### 批量压缩
 
 ```typescript
-import { rustyPic } from 'rusty-pic';
+import { rustyPic } from '@fe-fast/rusty-pic';
 
 const files = Array.from(document.querySelector('input[type="file"]').files);
 const results = await rustyPic.compressBatch(files, {
@@ -69,7 +69,7 @@ const results = await rustyPic.compressBatch(files, {
 ### 智能压缩
 
 ```typescript
-import { rustyPic } from 'rusty-pic';
+import { rustyPic } from '@fe-fast/rusty-pic';
 
 // 自动选择最佳参数
 const result = await rustyPic.smartCompress(file);
@@ -83,7 +83,7 @@ const result = await rustyPic.smartCompress(file, 100 * 1024); // 100KB
 ### 安装 CLI
 
 ```bash
-npm install -g rusty-pic
+npm install -g @fe-fast/rusty-pic
 ```
 
 ### 使用示例
@@ -157,6 +157,54 @@ interface CompressionResult {
 }
 ```
 
+## 🔌 Vite 插件
+
+Rusty-Pic 提供了 Vite 插件，可以在构建时自动压缩项目中的图片资源。
+
+### 安装和配置
+
+```javascript
+// vite.config.js
+import { defineConfig } from 'vite';
+import { rustyPic } from '@fe-fast/rusty-pic/vite';
+
+export default defineConfig({
+  plugins: [
+    rustyPic({
+      // 基本配置
+      quality: 80,
+      format: 'webp',
+      
+      // 高级配置
+      resize: {
+        maxWidth: 1920,
+        maxHeight: 1080
+      },
+      
+      // 环境配置
+      dev: {
+        enabled: false // 开发环境禁用
+      },
+      
+      build: {
+        enabled: true,
+        generateWebp: true
+      }
+    })
+  ]
+});
+```
+
+### 插件特性
+
+- **自动压缩**: 构建时自动检测和压缩图片
+- **多格式输出**: 同时生成多种格式的图片
+- **智能缓存**: 避免重复压缩相同图片
+- **开发优化**: 开发环境可选择性启用
+- **详细日志**: 提供压缩进度和结果统计
+
+查看 [Vite 插件完整文档](VITE_PLUGIN_USAGE.md) 了解更多配置选项。
+
 ## 🏗️ 开发
 
 ### 环境要求
@@ -169,7 +217,7 @@ interface CompressionResult {
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/rusty-pic.git
+git clone https://github.com/fe-fast/rusty-pic.git
 cd rusty-pic
 
 # 安装依赖
@@ -246,9 +294,9 @@ pnpm run bench
 
 ## 📞 支持
 
-- 📧 邮箱: support@rusty-pic.com
-- 🐛 问题反馈: [GitHub Issues](https://github.com/your-username/rusty-pic/issues)
-- 💬 讨论: [GitHub Discussions](https://github.com/your-username/rusty-pic/discussions)
+- 📧 邮箱: support@fe-fast.com
+- 🐛 问题反馈: [GitHub Issues](https://github.com/fe-fast/rusty-pic/issues)
+- 💬 讨论: [GitHub Discussions](https://github.com/fe-fast/rusty-pic/discussions)
 
 ---
 

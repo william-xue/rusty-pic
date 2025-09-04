@@ -2,16 +2,17 @@ import { useState } from "react";
 import { Puzzle, Copy, Check, Download, Settings, Zap, Package } from "lucide-react";
 import { toast } from "sonner";
 
-const installExample = `npm install vite-plugin-rusty-pic --save-dev
+const installExample = `# 安装 Rusty-Pic (包含 Vite 插件)
+npm install @fe-fast/rusty-pic --save-dev
 # 或者
-pnpm add -D vite-plugin-rusty-pic
+pnpm add -D @fe-fast/rusty-pic
 # 或者
-yarn add -D vite-plugin-rusty-pic`;
+yarn add -D @fe-fast/rusty-pic`;
 
 const basicConfigExample = `// vite.config.js
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { rustyPic } from 'vite-plugin-rusty-pic';
+import { rustyPic } from '@fe-fast/rusty-pic/vite';
 
 export default defineConfig({
   plugins: [
@@ -19,15 +20,14 @@ export default defineConfig({
     rustyPic({
       // 基础配置
       quality: 80,
-      format: 'auto',
-      mode: 'balanced'
+      format: 'auto'
     })
   ]
 });`;
 
 const advancedConfigExample = `// vite.config.js
 import { defineConfig } from 'vite';
-import { rustyPic } from 'vite-plugin-rusty-pic';
+import { rustyPic } from '@fe-fast/rusty-pic/vite';
 
 export default defineConfig({
   plugins: [
@@ -38,14 +38,20 @@ export default defineConfig({
       
       // 压缩配置
       quality: 85,
-      format: 'auto', // 'webp' | 'jpeg' | 'png' | 'auto'
-      mode: 'balanced', // 'conservative' | 'balanced' | 'aggressive'
+      format: 'auto', // 'webp' | 'jpeg' | 'png' | 'avif' | 'auto'
       
       // 尺寸配置
       resize: {
         maxWidth: 1920,
         maxHeight: 1080,
         fit: 'inside'
+      },
+      
+      // 优化配置
+      optimize: {
+        colors: true,
+        progressive: true,
+        lossless: false
       },
       
       // 输出配置
@@ -80,7 +86,7 @@ export default defineConfig({
 });`;
 
 const nextjsExample = `// next.config.js
-const { withRustyPic } = require('vite-plugin-rusty-pic/next');
+const { withRustyPic } = require('@fe-fast/rusty-pic/next');
 
 module.exports = withRustyPic({
   // Next.js 配置
@@ -90,21 +96,19 @@ module.exports = withRustyPic({
   rustyPic: {
     quality: 80,
     format: 'webp',
-    mode: 'balanced',
     include: ['public/**/*.{png,jpg,jpeg}'],
     outputDir: 'public/optimized'
   }
 });`;
 
 const webpackExample = `// webpack.config.js
-const RustyPicWebpackPlugin = require('vite-plugin-rusty-pic/webpack');
+const RustyPicWebpackPlugin = require('@fe-fast/rusty-pic/webpack');
 
 module.exports = {
   plugins: [
     new RustyPicWebpackPlugin({
       quality: 75,
       format: 'auto',
-      mode: 'aggressive',
       include: /\.(png|jpe?g|webp)$/i,
       exclude: /node_modules/
     })
@@ -175,39 +179,39 @@ const configOptions = [
   },
   {
     option: "format",
-    type: "'webp' | 'jpeg' | 'png' | 'auto'",
+    type: "'webp' | 'jpeg' | 'png' | 'avif' | 'auto'",
     default: "'auto'",
     description: "输出格式"
   },
   {
-    option: "mode",
-    type: "'conservative' | 'balanced' | 'aggressive'",
-    default: "'balanced'",
-    description: "压缩模式"
+    option: "resize.maxWidth",
+    type: "number",
+    default: "undefined",
+    description: "最大宽度限制"
   },
   {
-    option: "outputDir",
-    type: "string",
-    default: "'dist/assets'",
-    description: "输出目录"
+    option: "resize.maxHeight",
+    type: "number",
+    default: "undefined",
+    description: "最大高度限制"
+  },
+  {
+    option: "optimize.colors",
+    type: "boolean",
+    default: "true",
+    description: "启用颜色优化"
+  },
+  {
+    option: "optimize.progressive",
+    type: "boolean",
+    default: "false",
+    description: "启用渐进式编码"
   },
   {
     option: "generateManifest",
     type: "boolean",
     default: "false",
     description: "生成压缩清单文件"
-  },
-  {
-    option: "preserveOriginal",
-    type: "boolean",
-    default: "false",
-    description: "保留原始文件"
-  },
-  {
-    option: "cache.enabled",
-    type: "boolean",
-    default: "true",
-    description: "启用缓存"
   },
   {
     option: "verbose",
@@ -255,6 +259,17 @@ export default function VitePlugin() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Status */}
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-8">
+        <div className="flex items-center justify-center">
+          <div className="flex items-center text-green-800">
+            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+            <span className="font-medium">✅ 可用</span>
+            <span className="ml-2 text-sm">Vite 插件已包含在 @fe-fast/rusty-pic 包中！</span>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="text-center mb-12">
         <div className="flex justify-center mb-4">
@@ -390,7 +405,7 @@ export default function VitePlugin() {
               <li>• 生成临时文件，不影响源文件</li>
             </ul>
           </div>
-          
+
           <div className="bg-green-50 border border-green-200 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-green-900 mb-3">
               🚀 生产模式 (build)
@@ -422,7 +437,7 @@ export default function VitePlugin() {
               <li>• CI/CD 环境可以预先缓存 node_modules/.cache/rusty-pic</li>
             </ul>
           </div>
-          
+
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-purple-900 mb-3">
               🎯 输出优化
@@ -456,7 +471,7 @@ export default function VitePlugin() {
               <li>• 考虑在开发模式禁用压缩 <code className="bg-slate-100 px-1 rounded">dev.enabled: false</code></li>
             </ul>
           </div>
-          
+
           <div className="bg-white border border-slate-200 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-slate-900 mb-2">
               Q: 图片质量不满意怎么调整？
@@ -470,7 +485,7 @@ export default function VitePlugin() {
               <li>• 指定输出格式 <code className="bg-slate-100 px-1 rounded">format: 'png'</code> (无损)</li>
             </ul>
           </div>
-          
+
           <div className="bg-white border border-slate-200 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-slate-900 mb-2">
               Q: 如何在不同环境使用不同配置？
@@ -478,7 +493,7 @@ export default function VitePlugin() {
             <p className="text-slate-600 text-sm mb-2">
               A: 使用环境变量或条件配置：
             </p>
-            <CodeBlock 
+            <CodeBlock
               code={`// vite.config.js
 export default defineConfig(({ mode }) => ({
   plugins: [
