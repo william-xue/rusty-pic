@@ -60,7 +60,7 @@ pub mod png {
 
         let mut out: Vec<u8> = Vec::with_capacity((w * h * 4) as usize / 2 + 1024);
         let enc = PngEncoder::new_with_quality(&mut out, compression, filter);
-        enc.write_image(&data, w, h, image::ColorType::Rgba8)
+        enc.write_image(data, w, h, image::ColorType::Rgba8)
             .map_err(|e| CompressionError::EncodingError(e.to_string()))?;
         Ok(out)
     }

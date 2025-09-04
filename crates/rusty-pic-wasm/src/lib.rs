@@ -22,6 +22,12 @@ pub struct JsCompressionOptions {
     quality: Option<u8>,
 }
 
+impl Default for JsCompressionOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[wasm_bindgen]
 impl JsCompressionOptions {
     #[wasm_bindgen(constructor)]
@@ -91,6 +97,12 @@ impl JsCompressionResult {
 #[wasm_bindgen]
 pub struct RustyPic;
 
+impl Default for RustyPic {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[wasm_bindgen]
 impl RustyPic {
     #[wasm_bindgen(constructor)]
@@ -136,7 +148,7 @@ impl RustyPic {
                 }
                 Err(e) => {
                     // 如果压缩失败，返回错误信息
-                    let error_msg = format!("Compression failed: {}", e);
+                    let error_msg = format!("Compression failed: {e}");
                     Err(JsValue::from_str(&error_msg))
                 }
             }

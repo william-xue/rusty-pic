@@ -76,7 +76,7 @@ impl CompressionEngine {
 
         #[cfg(feature = "logging")]
         if self.logger_enabled {
-            log::debug!("Starting compression of {} bytes", original_size);
+            log::debug!("Starting compression of {original_size} bytes");
         }
 
         // Load and analyze the image
@@ -160,11 +160,7 @@ impl CompressionEngine {
             if new_width != current_width || new_height != current_height {
                 #[cfg(feature = "logging")]
                 log::debug!(
-                    "Resizing from {}x{} to {}x{} (optimized)",
-                    current_width,
-                    current_height,
-                    new_width,
-                    new_height
+                    "Resizing from {current_width}x{current_height} to {new_width}x{new_height} (optimized)"
                 );
 
                 let filter = match resize.fit.as_str() {
@@ -183,8 +179,7 @@ impl CompressionEngine {
                     // 设定块行高，确保至少 8 块
                     let target_blocks = 8usize;
                     let block_rows =
-                        std::cmp::max(1, (src_height as usize + target_blocks - 1) / target_blocks)
-                            as u32;
+                        std::cmp::max(1, (src_height as usize).div_ceil(target_blocks)) as u32;
 
                     // 为每个块计算源/目标 y 范围
                     let mut parts: Vec<(u32, u32)> = Vec::new();
@@ -292,7 +287,7 @@ impl CompressionEngine {
         if let Some(data) = crate::performance::ZeroCopyTransfer::transfer_compatible(img, format) {
             #[cfg(feature = "logging")]
             if self.logger_enabled {
-                log::debug!("Using zero-copy transfer for format: {}", format);
+                log::debug!("Using zero-copy transfer for format: {format}");
             }
             return Ok(data);
         }
@@ -313,9 +308,9 @@ impl CompressionEngine {
         match format {
             "jpeg" | "jpg" => {
                 // JPEG support will be added in future versions
-                return Err(CompressionError::UnsupportedFeature(
+                Err(CompressionError::UnsupportedFeature(
                     "JPEG format not yet implemented".to_string(),
-                ));
+                ))
             }
             "png" => {
                 // 纯 Rust PNG 编码路径：使用 image::codecs::png::PngEncoder
@@ -323,7 +318,7 @@ impl CompressionEngine {
                 use image::ImageEncoder;
 
                 // 编码参数：在 wasm 环境避免引入任何 C 依赖
-                let lossless = options.optimize.as_ref().map_or(false, |o| o.lossless);
+                let lossless = options.optimize.as_ref().is_some_and(|o| o.lossless);
                 // 压缩级别与过滤器选择做一个简单映射
                 let (compression, filter) = if lossless {
                     (CompressionType::Best, FilterType::Paeth)
@@ -339,33 +334,31 @@ impl CompressionEngine {
                 let mut out: Vec<u8> = Vec::with_capacity((w * h * 4) as usize / 2 + 1024);
                 {
                     let enc = PngEncoder::new_with_quality(&mut out, compression, filter);
-                    enc.write_image(&data, w, h, image::ColorType::Rgba8)
+                    enc.write_image(data, w, h, image::ColorType::Rgba8)
                         .map_err(|e| CompressionError::EncodingError(e.to_string()))?;
                 }
                 Ok(out)
             }
             "webp" => {
                 // WebP support will be added in future versions
-                return Err(CompressionError::UnsupportedFeature(
+                Err(CompressionError::UnsupportedFeature(
                     "WebP format not yet implemented".to_string(),
-                ));
+                ))
             }
             "avif" => {
                 // AVIF support will be added in future versions
-                return Err(CompressionError::UnsupportedFeature(
+                Err(CompressionError::UnsupportedFeature(
                     "AVIF format not yet implemented".to_string(),
-                ));
+                ))
             }
-            _ => {
-                return Err(CompressionError::UnsupportedFeature(format!(
-                    "Format '{}' not supported (feature not enabled)",
-                    format
-                )));
-            }
+            _ => Err(CompressionError::UnsupportedFeature(format!(
+                "Format '{format}' not supported (feature not enabled)"
+            ))),
         }
     }
 
     /// Apply color optimizations with parallel preprocessing for large images
+    #[allow(dead_code)]
     fn apply_simd_color_optimization(
         &self,
         img: &DynamicImage,

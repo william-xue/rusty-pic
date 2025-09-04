@@ -225,6 +225,7 @@ impl SimdProcessor {
 
     // Private helper methods for SIMD operations
 
+    #[allow(dead_code)]
     fn convert_rgb_to_yuv_chunk_simd(rgb: &[u8], yuv: &mut [u8]) {
         // RGB to YUV conversion using SIMD
         // Y = 0.299*R + 0.587*G + 0.114*B
@@ -248,6 +249,7 @@ impl SimdProcessor {
         }
     }
 
+    #[allow(dead_code)]
     fn convert_yuv_to_rgb_chunk_simd(yuv: &[u8], rgb: &mut [u8]) {
         // YUV to RGB conversion using SIMD
         // R = Y + 1.402*(V-128)
@@ -271,6 +273,7 @@ impl SimdProcessor {
         }
     }
 
+    #[allow(dead_code)]
     fn convert_rgb_to_yuv_scalar(rgb: &[u8], yuv: &mut [u8]) {
         for i in (0..rgb.len()).step_by(3) {
             if i + 2 < rgb.len() {
@@ -289,6 +292,7 @@ impl SimdProcessor {
         }
     }
 
+    #[allow(dead_code)]
     fn convert_yuv_to_rgb_scalar(yuv: &[u8], rgb: &mut [u8]) {
         for i in (0..yuv.len()).step_by(3) {
             if i + 2 < yuv.len() {
@@ -383,8 +387,7 @@ impl OptimizedImageBuffer {
     /// Create a new optimized image buffer with pre-allocated memory
     pub fn new(width: u32, height: u32, channels: u8) -> Self {
         let size = (width * height * channels as u32) as usize;
-        let mut data = Vec::with_capacity(size);
-        data.resize(size, 0);
+        let data = vec![0; size];
 
         Self {
             data: Arc::new(data),
@@ -617,7 +620,7 @@ impl ZeroCopyTransfer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use image::{GenericImageView, ImageBuffer, Rgb, Rgba};
+    use image::{GenericImageView, ImageBuffer, Rgb};
 
     #[test]
     fn test_simd_rgb_to_yuv_conversion() {

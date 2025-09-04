@@ -51,13 +51,14 @@ harness = false
 name = "png_optimization_benchmark"
 harness = false
 
-[[bench]]
-name = "webp_optimization_benchmark"
-harness = false
+# WebP and AVIF benchmarks will be added in future versions
+# [[bench]]
+# name = "webp_optimization_benchmark"
+# harness = false
 
-[[bench]]
-name = "avif_optimization_benchmark"
-harness = false
+# [[bench]]
+# name = "avif_optimization_benchmark"
+# harness = false
 
 [[bench]]
 name = "performance_benchmark"

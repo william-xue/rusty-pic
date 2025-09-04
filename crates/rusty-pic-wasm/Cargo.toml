@@ -35,11 +35,4 @@ console_error_panic_hook = { version = "0.1.7", optional = true }
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 
-[profile.release]
-codegen-units = 1
-lto = true
-# -s 会移除符号表，减体积；也可使用 "z" 聚焦体积
-opt-level = "z"
-# 附加优化项（与 workspace metadata 中的 wasm-opt 配合）
-panic = "abort"
-strip = true
+# Profile configurations are now in workspace root Cargo.toml

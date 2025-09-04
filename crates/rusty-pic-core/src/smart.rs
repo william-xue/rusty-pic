@@ -33,10 +33,7 @@ impl SmartCompressionEngine {
     ) -> Result<CompressionResult> {
         #[cfg(feature = "logging")]
         if self.logger_enabled {
-            log::info!(
-                "Starting smart compression with constraints: {:?}",
-                constraints
-            );
+            log::info!("Starting smart compression with constraints: {constraints:?}");
         }
 
         // Load and analyze the image
@@ -369,7 +366,7 @@ impl SmartCompressionEngine {
 
         // Adjust based on aspect ratio (extreme ratios may indicate lower quality tolerance)
         let aspect_ratio = width as f32 / height as f32;
-        let aspect_penalty = if aspect_ratio > 3.0 || aspect_ratio < 0.33 {
+        let aspect_penalty = if !(0.33..=3.0).contains(&aspect_ratio) {
             0.9
         } else {
             1.0
@@ -542,7 +539,7 @@ impl SmartCompressionEngine {
             adjusted_quality
         };
 
-        Ok(final_quality.min(100).max(1))
+        Ok(final_quality.clamp(1, 100))
     }
 
     /// Iteratively compress to target file size
@@ -557,7 +554,7 @@ impl SmartCompressionEngine {
 
         #[cfg(feature = "logging")]
         if self.logger_enabled {
-            log::info!("Iterative compression target: {} bytes", target_bytes);
+            log::info!("Iterative compression target: {target_bytes} bytes");
         }
 
         let img = image::load_from_memory(data)?;
@@ -602,12 +599,13 @@ impl SmartCompressionEngine {
 
                     best_result = Some(result);
                 }
-                Err(e) =>
-                {
+                Err(e) => {
                     #[cfg(feature = "logging")]
                     if self.logger_enabled {
-                        log::warn!("Compression failed at quality {}: {}", current_quality, e);
+                        log::warn!("Compression failed at quality {current_quality}: {e}");
                     }
+                    #[cfg(not(feature = "logging"))]
+                    let _ = e; // Suppress unused variable warning when logging is disabled
                 }
             }
 

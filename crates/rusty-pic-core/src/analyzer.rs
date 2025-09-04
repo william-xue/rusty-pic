@@ -74,7 +74,7 @@ impl ImageAnalyzer {
     /// Detect image format from raw data
     fn detect_format(&self, data: &[u8]) -> Result<ImageFormat> {
         image::guess_format(data)
-            .map_err(|e| CompressionError::InvalidFormat(format!("Could not detect format: {}", e)))
+            .map_err(|e| CompressionError::InvalidFormat(format!("Could not detect format: {e}")))
     }
 
     /// Extract basic metadata from image
@@ -208,8 +208,8 @@ impl ImageAnalyzer {
             let pixel = img.get_pixel(x, y);
             let color = (pixel[0], pixel[1], pixel[2], pixel[3]);
 
-            if !color_map.contains_key(&color) {
-                color_map.insert(color, true);
+            if let std::collections::hash_map::Entry::Vacant(e) = color_map.entry(color) {
+                e.insert(true);
 
                 if color_map.len() >= 65536 {
                     break;
@@ -323,7 +323,7 @@ impl ImageAnalyzer {
 
         // Adjust based on aspect ratio
         let aspect_ratio = width as f32 / height as f32;
-        let aspect_penalty = if aspect_ratio > 3.0 || aspect_ratio < 0.33 {
+        let aspect_penalty = if !(0.33..=3.0).contains(&aspect_ratio) {
             0.9 // Extreme aspect ratios may be more tolerant to compression
         } else {
             1.0
@@ -426,9 +426,7 @@ impl ImageAnalyzer {
         // Apply perceptual quality adjustment
         let adjusted_quality = if format != "png" {
             let perceptual_adjustment = 0.85 + (perceptual_score * 0.15);
-            ((base_quality as f32 * perceptual_adjustment) as u8)
-                .min(100)
-                .max(50)
+            ((base_quality as f32 * perceptual_adjustment) as u8).clamp(50, 100)
         } else {
             base_quality
         };
@@ -436,8 +434,7 @@ impl ImageAnalyzer {
         #[cfg(feature = "logging")]
         if self.logger_enabled {
             log::debug!(
-                "Format recommendation: {} at quality {} (complexity: {:.3}, texture: {:.3}, colors: {}, perceptual: {:.3})",
-                format, adjusted_quality, complexity, texture_complexity, color_count, perceptual_score
+                "Format recommendation: {format} at quality {adjusted_quality} (complexity: {complexity:.3}, texture: {texture_complexity:.3}, colors: {color_count}, perceptual: {perceptual_score:.3})"
             );
         }
 
@@ -464,33 +461,26 @@ impl ImageAnalyzer {
 
         // Rough estimation based on format and quality
         let compression_ratio = match format {
-            "jpeg" => {
-                let base_ratio = match quality {
-                    q if q >= 90 => 0.15,
-                    q if q >= 80 => 0.10,
-                    q if q >= 70 => 0.08,
-                    _ => 0.06,
-                };
-                base_ratio
-            }
-            "webp" => {
-                let base_ratio = match quality {
-                    q if q >= 90 => 0.12,
-                    q if q >= 80 => 0.08,
-                    q if q >= 70 => 0.06,
-                    _ => 0.04,
-                };
-                base_ratio
-            }
+            "jpeg" => match quality {
+                q if q >= 90 => 0.15,
+                q if q >= 80 => 0.10,
+                q if q >= 70 => 0.08,
+                _ => 0.06,
+            },
+            "webp" => match quality {
+                q if q >= 90 => 0.12,
+                q if q >= 80 => 0.08,
+                q if q >= 70 => 0.06,
+                _ => 0.04,
+            },
             "avif" => {
                 // AVIF typically achieves better compression than WebP
-                let base_ratio = match quality {
+                match quality {
                     q if q >= 90 => 0.08,
                     q if q >= 80 => 0.05,
                     q if q >= 70 => 0.04,
                     _ => 0.03,
-                };
-                base_ratio
+                }
             }
             "png" => 0.25, // PNG compression varies widely
             _ => 0.15,
