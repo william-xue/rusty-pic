@@ -1,13 +1,9 @@
-name: Simple GitHub Pages Deploy (Disabled)
+name: Minimal GitHub Pages Deploy
 
 on:
   workflow_dispatch:
-  # Disabled to avoid conflicts with minimal workflow
-  # push:
-  #   branches: [ main ]
-  #   paths-ignore:
-  #     - 'README.md'
-  #     - 'docs/**'
+  push:
+    branches: [ main ]
 
 permissions:
   contents: read
@@ -42,32 +38,18 @@ jobs:
     - name: Install wasm-pack
       run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
     
-    - name: Setup Node.js
+    - name: Setup Node.js and pnpm
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        cache: 'pnpm'
     
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v4
-    
-    - name: Get pnpm store directory
-      shell: bash
-      run: |
-        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-    
-    - name: Setup pnpm cache
-      uses: actions/cache@v4
-      with:
-        path: ${{ env.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-        restore-keys: |
-          ${{ runner.os }}-pnpm-store-
+    - name: Install pnpm
+      run: npm install -g pnpm@9
     
     - name: Install dependencies
       run: pnpm install
     
-    - name: Build WASM (PNG only)
+    - name: Build WASM
       run: wasm-pack build --target web --out-dir ../../pkg --features "png" crates/rusty-pic-wasm
     
     - name: Build library
