@@ -154,7 +154,10 @@ impl ImageAnalyzer {
             .collect();
 
         // 分片处理，每个分片使用局部 HashSet，避免全局锁
-        let chunk_size = std::cmp::max(1024, coordinates.len() / (rayon::current_num_threads().max(1) * 2));
+        let chunk_size = std::cmp::max(
+            1024,
+            coordinates.len() / (rayon::current_num_threads().max(1) * 2),
+        );
         let partial_sets: Vec<HashSet<(u8, u8, u8, u8)>> = coordinates
             .par_chunks(chunk_size)
             .map(|chunk| {

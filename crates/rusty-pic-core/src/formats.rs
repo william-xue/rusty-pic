@@ -5,12 +5,15 @@
 //! avoid extra files and any C dependencies for wasm32 builds.
 
 // Optional formats behind feature gates (modules are defined elsewhere)
-#[cfg(feature = "jpeg")]
-pub mod jpeg;
-#[cfg(feature = "webp")]
-pub mod webp;
-#[cfg(feature = "avif")]
-pub mod avif;
+// JPEG support will be added in future versions
+// #[cfg(feature = "jpeg")]
+// pub mod jpeg;
+// AVIF support will be added in future versions
+// #[cfg(feature = "avif")]
+// pub mod avif;
+// WebP support will be added in future versions
+// #[cfg(feature = "webp")]
+// pub mod webp;
 
 // Inline PNG module implementation
 pub mod png {
@@ -42,9 +45,9 @@ pub mod png {
         }
     }
 
+    use crate::{CompressionError, Result};
     use image::codecs::png::{CompressionType, FilterType, PngEncoder};
     use image::ImageEncoder;
-    use crate::{CompressionError, Result};
 
     /// 兼容签名的 PNG 编码函数；当前实现直接委托给 image 纯 Rust 编码器
     pub fn encode_optimized(img: &image::DynamicImage, _opts: &PngOptions) -> Result<Vec<u8>> {
@@ -56,7 +59,7 @@ pub mod png {
         let data = rgba.as_raw();
 
         let mut out: Vec<u8> = Vec::with_capacity((w * h * 4) as usize / 2 + 1024);
-        let mut enc = PngEncoder::new_with_quality(&mut out, compression, filter);
+        let enc = PngEncoder::new_with_quality(&mut out, compression, filter);
         enc.write_image(&data, w, h, image::ColorType::Rgba8)
             .map_err(|e| CompressionError::EncodingError(e.to_string()))?;
         Ok(out)

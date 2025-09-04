@@ -38,11 +38,10 @@ export default function Layout() {
                   <Link
                     key={item.name}
                     to={item.href}
-                    className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isActive
+                    className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive
                         ? "bg-orange-100 text-orange-700"
                         : "text-slate-600 hover:text-orange-600 hover:bg-orange-50"
-                    }`}
+                      }`}
                   >
                     <Icon className="w-4 h-4" />
                     <span>{item.name}</span>
@@ -53,7 +52,7 @@ export default function Layout() {
 
             {/* GitHub Link */}
             <a
-              href="https://github.com/yourusername/rusty-pic"
+              href="https://github.com/william-xue/rusty-pic"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
@@ -75,11 +74,10 @@ export default function Layout() {
                   <Link
                     key={item.name}
                     to={item.href}
-                    className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                      isActive
+                    className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${isActive
                         ? "bg-orange-100 text-orange-700"
                         : "text-slate-600 hover:text-orange-600 hover:bg-orange-50"
-                    }`}
+                      }`}
                   >
                     <Icon className="w-3 h-3" />
                     <span>{item.name}</span>

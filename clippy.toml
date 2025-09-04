@@ -1,0 +1,5 @@
+# Clippy configuration for rusty-pic
+# Allow some lints during development
+
+# Allow format string warnings for now
+allow-unwrap-in-tests = true

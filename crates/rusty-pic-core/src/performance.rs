@@ -4,8 +4,8 @@
 //! and parallel processing utilities for high-performance image compression.
 
 use crate::{CompressionError, Result};
-use bytemuck::{cast_slice, cast_slice_mut, Pod, Zeroable};
-use image::{DynamicImage, GenericImageView, ImageBuffer, Pixel, Rgb, Rgba};
+use bytemuck::{cast_slice, cast_slice_mut, Pod};
+use image::{DynamicImage, ImageBuffer, Rgb, Rgba};
 use rayon::prelude::*;
 use std::sync::Arc;
 // 移除未用 wide 向量类型（当前实现为并行标量核心）
@@ -16,7 +16,10 @@ pub struct SimdProcessor;
 impl SimdProcessor {
     /// "SIMD"-accelerated（当前实现为并行分块 + 标量核心，避免错误SIMD用法）
     pub fn rgb_to_yuv_simd(rgb_data: &[u8]) -> Vec<u8> {
-        assert!(rgb_data.len() % 3 == 0, "RGB data length must be multiple of 3");
+        assert!(
+            rgb_data.len() % 3 == 0,
+            "RGB data length must be multiple of 3"
+        );
 
         // 为避免在并行闭包中可变借用同一 Vec，采用“输出分片”策略：
         // 先分割输出到多个独立小 Vec，最后串行拼接。
@@ -64,7 +67,10 @@ impl SimdProcessor {
 
     /// 并行分块 + 标量核心（安全且可扩展为真实SIMD）
     pub fn yuv_to_rgb_simd(yuv_data: &[u8]) -> Vec<u8> {
-        assert!(yuv_data.len() % 3 == 0, "YUV data length must be multiple of 3");
+        assert!(
+            yuv_data.len() % 3 == 0,
+            "YUV data length must be multiple of 3"
+        );
 
         let pixels = yuv_data.len() / 3;
         let block_pixels = 4096usize;
@@ -116,17 +122,15 @@ impl SimdProcessor {
 
         // 并行分块处理，避免全量锁
         let chunk_len = 4096; // 4KB 块
-        let len = pixels.len();
+        let _len = pixels.len();
 
-        pixels
-            .par_chunks_mut(chunk_len)
-            .for_each(|chunk| {
-                for v in chunk.iter_mut() {
-                    let normalized = (*v as f32) * inv_scale;
-                    let quantized = normalized.round() * scale;
-                    *v = quantized.clamp(0.0, 255.0) as u8;
-                }
-            });
+        pixels.par_chunks_mut(chunk_len).for_each(|chunk| {
+            for v in chunk.iter_mut() {
+                let normalized = (*v as f32) * inv_scale;
+                let quantized = normalized.round() * scale;
+                *v = quantized.clamp(0.0, 255.0) as u8;
+            }
+        });
 
         // 无需单独处理 remainder，par_chunks_mut 已覆盖
     }
@@ -160,7 +164,7 @@ impl SimdProcessor {
         image: &ImageBuffer<image::Luma<u8>, Vec<u8>>,
     ) -> ImageBuffer<image::Luma<u8>, Vec<u8>> {
         let (width, height) = image.dimensions();
-        let mut output = ImageBuffer::new(width, height);
+        let output = ImageBuffer::new(width, height);
 
         if width < 3 || height < 3 {
             return output;

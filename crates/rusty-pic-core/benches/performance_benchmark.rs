@@ -1,10 +1,10 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use image::GenericImageView;
 use image::{DynamicImage, ImageBuffer, Rgb, Rgba};
 use rusty_pic_core::{
     performance::{MemoryPool, OptimizedImageBuffer, ParallelProcessor, SimdProcessor},
     CompressionEngine, CompressionOptions,
 };
-use std::sync::Arc;
 
 fn create_test_image(width: u32, height: u32, channels: u8) -> DynamicImage {
     match channels {
@@ -83,7 +83,7 @@ fn bench_simd_quantization(c: &mut Criterion) {
         let pixel_count = size * size * 3;
         group.throughput(Throughput::Bytes(pixel_count as u64));
 
-        let mut pixels: Vec<u8> = (0..pixel_count).map(|i| (i % 256) as u8).collect();
+        let pixels: Vec<u8> = (0..pixel_count).map(|i| (i % 256) as u8).collect();
 
         group.bench_with_input(BenchmarkId::new("quantize_simd", size), size, |b, _| {
             b.iter(|| {
@@ -141,7 +141,8 @@ fn bench_parallel_processing(c: &mut Criterion) {
                     (0..count).map(|_| create_test_image(512, 512, 3)).collect();
 
                 b.iter(|| {
-                    let results: Vec<_> = images.iter().map(|img| Ok(img.dimensions())).collect();
+                    let results: Vec<Result<(u32, u32), ()>> =
+                        images.iter().map(|img| Ok(img.dimensions())).collect();
                     black_box(results);
                 });
             },

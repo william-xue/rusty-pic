@@ -1,5 +1,4 @@
-use image::{DynamicImage, ImageBuffer, Rgb, Rgba};
-use image::GenericImageView;
+use image::{DynamicImage, GenericImageView, ImageBuffer, Rgb, Rgba};
 use rusty_pic_core::{
     performance::{
         MemoryPool, OptimizedImageBuffer, ParallelProcessor, SimdProcessor, ZeroCopyTransfer,
@@ -230,7 +229,7 @@ fn test_memory_pool_performance() {
 
     println!("Memory pool took: {:?}", pool_duration);
     println!("Direct allocation took: {:?}", direct_duration);
-    
+
     // 在部分环境（快速分配器/低负载/频率提升）中，直接分配极快，池化的同步开销可能不占优。
     // 此处不再对相对比值做强断言，仅确保两者都在“合理范围”内（例如 <5 秒），避免脆弱的性能断言导致 CI 失败。
     assert!(

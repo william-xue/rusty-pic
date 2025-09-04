@@ -1,7 +1,7 @@
 //! Core compression engine
 
 use crate::{
-    performance::{MemoryPool, OptimizedImageBuffer, ParallelProcessor, SimdProcessor},
+    performance::{MemoryPool, SimdProcessor},
     CompressionError, ImageAnalyzer, ImageMetadata, Result,
 };
 use image::{DynamicImage, GenericImageView};
@@ -182,7 +182,9 @@ impl CompressionEngine {
 
                     // 设定块行高，确保至少 8 块
                     let target_blocks = 8usize;
-                    let block_rows = std::cmp::max(1, (src_height as usize + target_blocks - 1) / target_blocks) as u32;
+                    let block_rows =
+                        std::cmp::max(1, (src_height as usize + target_blocks - 1) / target_blocks)
+                            as u32;
 
                     // 为每个块计算源/目标 y 范围
                     let mut parts: Vec<(u32, u32)> = Vec::new();
@@ -200,7 +202,10 @@ impl CompressionEngine {
                         .map(|(y0, h)| {
                             let view = imageops::crop_imm(&rgba, 0, y0, src_width, h).to_image();
                             // 计算该块在目标图中的高度（按比例）
-                            let dest_h = std::cmp::max(1, ((h as u64 * new_height as u64) / src_height as u64) as u32);
+                            let dest_h = std::cmp::max(
+                                1,
+                                ((h as u64 * new_height as u64) / src_height as u64) as u32,
+                            );
                             imageops::resize(&view, new_width, dest_h, filter)
                         })
                         .collect();
@@ -212,7 +217,9 @@ impl CompressionEngine {
                         let bh = block.height();
                         imageops::replace(&mut out, &block, 0, dy as i64);
                         dy += bh;
-                        if dy >= new_height { break; }
+                        if dy >= new_height {
+                            break;
+                        }
                     }
 
                     Ok(DynamicImage::ImageRgba8(out))
@@ -304,20 +311,11 @@ impl CompressionEngine {
         let _temp_buffer = self.memory_pool.get_buffer();
 
         match format {
-            #[cfg(feature = "jpeg")]
             "jpeg" | "jpg" => {
-                // Use optimized mozjpeg encoder with SIMD preprocessing
-                let quality = options.quality.unwrap_or(80);
-                let optimized_img = self.apply_simd_color_optimization(img, "jpeg")?;
-                let jpeg_options = crate::formats::jpeg::JpegOptions {
-                    quality,
-                    progressive: options.optimize.as_ref().map_or(true, |o| o.progressive),
-                    optimize_coding: true,
-                    smoothing_factor: 0,
-                    color_space: crate::formats::jpeg::JpegColorSpace::Auto,
-                    adaptive_quantization: true,
-                };
-                return crate::formats::jpeg::encode_optimized(&optimized_img, &jpeg_options);
+                // JPEG support will be added in future versions
+                return Err(CompressionError::UnsupportedFeature(
+                    "JPEG format not yet implemented".to_string(),
+                ));
             }
             "png" => {
                 // 纯 Rust PNG 编码路径：使用 image::codecs::png::PngEncoder
@@ -340,43 +338,23 @@ impl CompressionEngine {
 
                 let mut out: Vec<u8> = Vec::with_capacity((w * h * 4) as usize / 2 + 1024);
                 {
-                    let mut enc = PngEncoder::new_with_quality(&mut out, compression, filter);
+                    let enc = PngEncoder::new_with_quality(&mut out, compression, filter);
                     enc.write_image(&data, w, h, image::ColorType::Rgba8)
                         .map_err(|e| CompressionError::EncodingError(e.to_string()))?;
                 }
                 Ok(out)
             }
-            #[cfg(feature = "webp")]
             "webp" => {
-                // Use optimized WebP encoder with SIMD preprocessing
-                let quality = options.quality.unwrap_or(80) as f32;
-                let lossless = options.optimize.as_ref().map_or(false, |o| o.lossless);
-                let optimized_img = self.apply_simd_color_optimization(img, "webp")?;
-                let webp_options = crate::formats::webp::WebPOptions {
-                    quality,
-                    lossless,
-                    alpha_compression: true,
-                    preserve_transparency: true,
-                };
-                return crate::formats::webp::encode_optimized(&optimized_img, &webp_options);
+                // WebP support will be added in future versions
+                return Err(CompressionError::UnsupportedFeature(
+                    "WebP format not yet implemented".to_string(),
+                ));
             }
-            #[cfg(feature = "avif")]
             "avif" => {
-                // Use optimized AVIF encoder with SIMD preprocessing
-                let quality = options.quality.unwrap_or(80);
-                let lossless = options.optimize.as_ref().map_or(false, |o| o.lossless);
-                let optimized_img = self.apply_simd_color_optimization(img, "avif")?;
-                let avif_options = crate::formats::avif::AvifOptions {
-                    quality,
-                    speed: 6, // Balanced speed/quality
-                    alpha_quality: quality,
-                    color_space: crate::formats::avif::AvifColorSpace::Auto,
-                    bit_depth: 8,
-                    lossless,
-                    subsample: crate::formats::avif::AvifSubsample::Auto,
-                    enable_sharp_yuv: true,
-                };
-                return crate::formats::avif::encode_optimized(&optimized_img, &avif_options);
+                // AVIF support will be added in future versions
+                return Err(CompressionError::UnsupportedFeature(
+                    "AVIF format not yet implemented".to_string(),
+                ));
             }
             _ => {
                 return Err(CompressionError::UnsupportedFeature(format!(
@@ -424,9 +402,12 @@ impl CompressionEngine {
                         let data = rgb.as_raw();
                         let yuv = SimdProcessor::rgb_to_yuv_simd(data);
                         let back = SimdProcessor::yuv_to_rgb_simd(&yuv);
-                        let buf = image::ImageBuffer::from_raw(width, height, back).ok_or_else(|| {
-                            CompressionError::MemoryError("Failed to create optimized RGB buffer".into())
-                        })?;
+                        let buf =
+                            image::ImageBuffer::from_raw(width, height, back).ok_or_else(|| {
+                                CompressionError::MemoryError(
+                                    "Failed to create optimized RGB buffer".into(),
+                                )
+                            })?;
                         Ok(DynamicImage::ImageRgb8(buf))
                     }
                     DynamicImage::ImageRgba8(_) => Ok(img.clone()),

@@ -13,13 +13,16 @@ pub mod formats;
 
 pub use analyzer::{ImageAnalysis, ImageAnalyzer, ImageMetadata};
 pub use compression::{CompressionEngine, CompressionOptions, CompressionResult};
-#[cfg(feature = "avif")]
-pub use formats::avif::{AvifColorSpace, AvifOptions, AvifSubsample};
-#[cfg(feature = "jpeg")]
-pub use formats::jpeg::{JpegColorSpace, JpegOptions};
+// AVIF support will be added in future versions
+// #[cfg(feature = "avif")]
+// pub use formats::avif::{AvifColorSpace, AvifOptions, AvifSubsample};
+// JPEG support will be added in future versions
+// #[cfg(feature = "jpeg")]
+// pub use formats::jpeg::{JpegColorSpace, JpegOptions};
 pub use formats::png::PngOptions;
-#[cfg(feature = "webp")]
-pub use formats::webp::WebPOptions;
+// WebP support will be added in future versions
+// #[cfg(feature = "webp")]
+// pub use formats::webp::WebPOptions;
 pub use performance::{
     MemoryPool, OptimizedImageBuffer, ParallelProcessor, SimdProcessor, ZeroCopyTransfer,
 };
