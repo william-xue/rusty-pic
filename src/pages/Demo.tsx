@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { Upload, Download, Image as ImageIcon, Zap, BarChart3, Settings, X, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
+import { rustyPic, type CompressionOptions, type CompressionResult as RustyPicResult } from "@/lib/rusty-pic";
 
 interface CompressedResult {
   originalFile: File;
@@ -51,70 +52,45 @@ export default function Demo() {
 
   // 使用浏览器原生 Canvas API 进行图片压缩演示
   const compressImage = useCallback(async (file: File, settings: CompressionSettings): Promise<CompressedResult> => {
-    const startTime = Date.now();
-    const originalSize = file.size;
-
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      img.onload = () => {
-        try {
-          // 设置画布尺寸
-          let { width, height } = img;
-
-          // 如果设置了最大尺寸，进行缩放
-          if (settings.maxWidth && width > settings.maxWidth) {
-            height = (height * settings.maxWidth) / width;
-            width = settings.maxWidth;
-          }
-          if (settings.maxHeight && height > settings.maxHeight) {
-            width = (width * settings.maxHeight) / height;
-            height = settings.maxHeight;
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-
-          // 绘制图片
-          ctx?.drawImage(img, 0, 0, width, height);
-
-          // 根据设置选择输出格式和质量
-          const outputFormat = settings.format === 'auto' ? 'webp' : settings.format;
-          const quality = settings.quality / 100;
-          const mimeType = `image/${outputFormat === 'jpeg' ? 'jpeg' : outputFormat}`;
-
-          canvas.toBlob((blob) => {
-            if (blob) {
-              const compressedSize = blob.size;
-              const compressionRatio = originalSize > 0 ? (1 - compressedSize / originalSize) * 100 : 0;
-              const processingTime = Date.now() - startTime;
-
-              resolve({
-                originalFile: file,
-                compressedBlob: blob,
-                originalSize,
-                compressedSize,
-                compressionRatio: Math.max(0, compressionRatio), // 确保不为负数
-                processingTime,
-                format: outputFormat,
-              });
-            } else {
-              reject(new Error('压缩失败'));
-            }
-          }, mimeType, quality);
-        } catch (error) {
-          reject(error);
+    try {
+      // 构建压缩选项
+      const options: CompressionOptions = {
+        format: settings.format,
+        quality: settings.quality,
+        resize: (settings.maxWidth || settings.maxHeight) ? {
+          width: settings.maxWidth,
+          height: settings.maxHeight,
+          fit: 'contain'
+        } : undefined,
+        optimize: {
+          colors: settings.mode !== 'conservative',
+          progressive: settings.mode === 'aggressive',
+          lossless: false,
         }
       };
 
-      img.onerror = () => {
-        reject(new Error('图片加载失败'));
-      };
+      // 使用 RustyPic API 压缩
+      const result = await rustyPic.compress(file, options);
 
-      img.src = URL.createObjectURL(file);
-    });
+      // 将结果转换为 Blob
+      const compressedBlob = new Blob([result.data], {
+        type: `image/${result.format}`
+      });
+
+      return {
+        originalFile: file,
+        compressedBlob,
+        originalSize: result.originalSize,
+        compressedSize: result.compressedSize,
+        compressionRatio: result.compressionRatio,
+        processingTime: result.processingTime,
+        format: result.format,
+      };
+    } catch (error) {
+      console.error('Compression failed:', error);
+      toast.error(`压缩 ${file.name} 失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      throw error;
+    }
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -305,8 +281,8 @@ export default function Demo() {
       {/* Upload Area */}
       <div
         className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${isDragging
-            ? 'border-orange-400 bg-orange-50'
-            : 'border-slate-300 hover:border-slate-400'
+          ? 'border-orange-400 bg-orange-50'
+          : 'border-slate-300 hover:border-slate-400'
           }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "pnpm run build:wasm && tsc -b && vite build",
-    "build:wasm": "export PATH=\"$HOME/.cargo/bin:$PATH\" && wasm-pack build --target web --out-dir pkg",
+    "build:wasm": "export PATH=\"$HOME/.cargo/bin:$PATH\" && wasm-pack build --target web --out-dir pkg crates/rusty-pic-wasm",
+    "build:cli": "tsc src/cli/index.ts --outDir dist/cli --target es2020 --module commonjs",
     "build:packages": "pnpm -r --filter './packages/*' run build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -21,10 +22,15 @@
     "bench": "pnpm run bench:rust",
     "bench:rust": "cargo bench -p rusty-pic-core",
     "bench:js": "echo 'JavaScript benchmarks not yet configured'",
-    "clean": "rm -rf dist pkg target node_modules/.cache packages/*/dist"
+    "clean": "rm -rf dist pkg target node_modules/.cache packages/*/dist",
+    "cli": "node dist/cli/index.js"
+  },
+  "bin": {
+    "rusty-pic": "./dist/cli/index.js"
   },
   "dependencies": {
     "clsx": "^2.1.1",
+    "commander": "^12.1.0",
     "lucide-react": "^0.511.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
