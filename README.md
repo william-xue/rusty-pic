@@ -116,6 +116,49 @@ Notes | 说明：
 
 ---
 
+## 🖼️ AVIF Transcode | AVIF 转码
+
+Why AVIF? Generally higher compression efficiency than WebP at similar perceptual quality. Recommended quality range: 45–75 (start with 70). AVIF decoding is well supported on modern browsers.
+
+为什么选择 AVIF？通常在相近主观质量下，AVIF 的压缩率高于 WebP。建议质量范围：45–75（推荐 70 起步）。现代浏览器支持良好。
+
+Enable in Vite:
+```ts path=null start=null
+rustyPic({ format: 'avif', transcode: true, quality: 70 })
+```
+
+Enable in Webpack:
+```js path=null start=null
+new RustyPicWebpackPlugin({ format: 'avif', quality: 70 })
+```
+
+Compatibility tip: for older browsers, provide fallbacks via <picture> or server-side negotiation.
+
+兼容性提示：对旧浏览器可通过 <picture> 多源或服务端协商提供回退格式。
+
+Example HTML pattern:
+```html path=null start=null
+<picture>
+  <source type="image/avif" srcset="/assets/sample.avif" />
+  <source type="image/webp" srcset="/assets/sample.webp" />
+  <img src="/assets/sample.png" alt="image" />
+</picture>
+```
+
+### 📊 Example Size Comparison | 示例体积对比
+
+Below numbers are measured on the sample image in this repo (public/卡片.png) with default settings (WebP q=80, AVIF q=70). Actual results vary by image content.
+
+下表为本仓库示例图（public/卡片.png）在默认设置下的测量结果（WebP q=80，AVIF q=70），实际结果会因图片内容而异。
+
+| Format | Size | Reduction |
+|-------:|-----:|----------:|
+| PNG (original) | 3.83 MB | – |
+| WebP | 226.49 KB | 94.4% |
+| AVIF | 225.39 KB | 94.4% |
+
+---
+
 ## 🛠️ Runtime Backends | 运行后端
 
 - Node builds: sharp is used to perform real compression (jpeg/webp/avif/png). This ensures stable, fast build-time optimization and large size reductions.
