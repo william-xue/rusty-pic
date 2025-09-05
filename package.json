@@ -77,10 +77,12 @@
     "test": "pnpm run test:rust && pnpm run test:js",
     "test:rust": "cargo test",
     "test:js": "jest",
+    "test:int:vite": "node tests/integration/run-vite-test.mjs",
+    "test:int:webpack": "node tests/integration/run-webpack-test.mjs",
     "bench": "pnpm run bench:rust",
     "bench:rust": "cargo bench -p rusty-pic-core",
     "bench:js": "echo 'JavaScript benchmarks not yet configured'",
-    "clean": "rm -rf dist pkg target node_modules/.cache packages/*/dist",
+    "clean": "rm -rf dist pkg target node_modules/.cache packages/*/dist tests/.tmp",
     "cli": "node dist/cli/index.js"
   },
   "publishConfig": {
@@ -121,6 +123,9 @@
     "vite": "^6.3.5",
     "vite-plugin-trae-solo-badge": "^1.0.0",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "webpack": "^5.95.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-sources": "^3.2.3"
   }
 }
