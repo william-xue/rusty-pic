@@ -64,8 +64,8 @@ jobs:
           PKG_NAME=$(node -p "require('./package.json').name")
           PKG_VER=$(node -p "require('./package.json').version")
           echo "Package: $PKG_NAME@$PKG_VER"
-          node -e "const {execSync}=require('child_process');const name=process.argv[2];const ver=process.argv[3];try{const out=execSync('npm view '+name+' versions --json',{encoding:'utf8'});const arr=JSON.parse(out);if(Array.isArray(arr)&&arr.includes(ver)){process.exit(0)}else{process.exit(1)}}catch(e){process.exit(1)}" "$PKG_NAME" "$PKG_VER"
-          if [ $? -eq 0 ]; then echo "already=true" >> $GITHUB_OUTPUT; else echo "already=false" >> $GITHUB_OUTPUT; fi
+          EXIST=$(npm view "$PKG_NAME@$PKG_VER" version 2>/dev/null || true)
+          if [ "$EXIST" = "$PKG_VER" ]; then echo "already=true" >> $GITHUB_OUTPUT; else echo "already=false" >> $GITHUB_OUTPUT; fi
 
       - name: Publish to npm
         if: steps.check.outputs.already == 'false'
