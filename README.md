@@ -1,303 +1,220 @@
 # Rusty-Pic
 
-🚀 高性能图片压缩工具，基于 Rust + WebAssembly 构建，专为弱网络环境和低端设备优化。
+High-performance image optimization toolkit for the web. Rusty-Pic integrates seamlessly with Vite and Webpack, compresses images at build time with content-hashed outputs and auto-updated references, and supports optional cross-format transcode (e.g. PNG → WebP/AVIF).
 
-## ✨ 特性
+Rusty-Pic 是一款高性能图片优化工具，深度集成 Vite 与 Webpack。它在构建阶段直接替换打包资产的字节，自动生成带内容哈希的产物并重写所有引用，可选开启跨格式转码（例如 PNG → WebP/AVIF）。
 
-- **极致压缩**: 基于 Rust 的高性能压缩算法，实现最大压缩率同时保持图片质量
-- **跨平台支持**: WebAssembly 技术支持浏览器、Node.js 和命令行环境
-- **多格式支持**: 支持 PNG、JPEG、WebP、AVIF 格式
-- **智能压缩**: 自动格式选择和参数优化
-- **批量处理**: 支持多文件并行处理
-- **开发者友好**: 提供 npm 包、CLI 工具、Vite 插件和 Webpack 插件
+---
 
-## 🎯 核心优势
+## ✨ Features | 功能特性
 
-- 90%+ 平均压缩率
-- 5x 速度提升（相比传统工具）
-- <2MB WASM 模块大小
-- 针对弱网络环境优化
+- Build-pipeline native integration (Vite + Webpack): auto content hash + auto reference rewrite
+- Optional cross-format transcode: PNG/JPEG → WebP/AVIF, safe rename & reference updates
+- Real compression in Node builds (sharp), WASM path for browsers (with Canvas fallback)
+- Cache-aware and size-aware: only replace when smaller; cache to avoid repeated work
+- Simple DX: one plugin, minimal config; integration tests provided
 
-## 🚀 快速开始
+- 原生构建管线集成（Vite + Webpack）：自动内容哈希与引用重写
+- 跨格式转码可选：PNG/JPEG → WebP/AVIF，安全改名与全量引用替换
+- Node 构建期真实压缩（sharp），浏览器端支持 WASM（并带 Canvas 兜底）
+- 感知缓存与体积：仅在更小时替换，缓存避免重复压缩
+- 开发者体验友好：一套插件，最小配置；提供可运行的集成测试
 
-### 在线演示
+---
 
-访问 [在线演示](https://your-demo-url.com) 体验 Rusty-Pic 的压缩能力。
-
-### 安装
+## 📦 Install | 安装
 
 ```bash
-# 使用 npm
+# npm
 npm install @fe-fast/rusty-pic
-
-# 使用 pnpm
+# pnpm
 pnpm add @fe-fast/rusty-pic
-
-# 使用 yarn
+# yarn
 yarn add @fe-fast/rusty-pic
 ```
 
-### 基础使用
+---
 
-```typescript
-import { rustyPic } from '@fe-fast/rusty-pic';
+## ⚙️ Vite Usage | Vite 使用
 
-// 压缩单个文件
-const file = document.querySelector('input[type="file"]').files[0];
-const result = await rustyPic.compress(file, {
-  format: 'webp',
-  quality: 80
-});
+Default behavior: format='auto', transcode=false → keep original extensions (png stays png) and compress; references are auto-rewritten to hashed outputs.
 
-console.log(`压缩率: ${result.compressionRatio.toFixed(1)}%`);
-```
+默认行为：format='auto' 且 transcode=false → 保持原扩展名，仅同格式压缩；引用会自动重写到带哈希的产物。
 
-### 批量压缩
-
-```typescript
-import { rustyPic } from '@fe-fast/rusty-pic';
-
-const files = Array.from(document.querySelector('input[type="file"]').files);
-const results = await rustyPic.compressBatch(files, {
-  format: 'auto',
-  quality: 85
-}, (progress) => {
-  console.log(`进度: ${progress.completed}/${progress.total}`);
-});
-```
-
-### 智能压缩
-
-```typescript
-import { rustyPic } from '@fe-fast/rusty-pic';
-
-// 自动选择最佳参数
-const result = await rustyPic.smartCompress(file);
-
-// 压缩到指定大小
-const result = await rustyPic.smartCompress(file, 100 * 1024); // 100KB
-```
-
-## 🛠️ CLI 工具
-
-### 安装 CLI
-
-```bash
-npm install -g @fe-fast/rusty-pic
-```
-
-### 使用示例
-
-```bash
-# 压缩单个文件
-rusty-pic compress input.jpg -q 80 -f webp
-
-# 批量压缩
-rusty-pic batch ./images -o ./compressed --recursive
-
-# 智能压缩
-rusty-pic smart input.png -s 50000  # 压缩到 50KB
-
-# 查看图片信息
-rusty-pic info input.jpg
-```
-
-### CLI 选项
-
-```bash
-rusty-pic compress [options] <input>
-
-选项:
-  -o, --output <path>     输出路径
-  -q, --quality <number>  压缩质量 (0-100) (默认: 80)
-  -f, --format <format>   输出格式 (webp|jpeg|png|auto) (默认: auto)
-  --width <number>        最大宽度
-  --height <number>       最大高度
-  --progressive           启用渐进式编码
-  --lossless             启用无损压缩
-```
-
-## 🔧 API 参考
-
-### CompressionOptions
-
-```typescript
-interface CompressionOptions {
-  format?: 'webp' | 'jpeg' | 'png' | 'avif' | 'auto';
-  quality?: number; // 0-100
-  resize?: {
-    width?: number;
-    height?: number;
-    fit?: 'cover' | 'contain' | 'fill' | 'inside' | 'outside';
-  };
-  optimize?: {
-    colors?: boolean;
-    progressive?: boolean;
-    lossless?: boolean;
-  };
-}
-```
-
-### CompressionResult
-
-```typescript
-interface CompressionResult {
-  data: Uint8Array;           // 压缩后的数据
-  originalSize: number;       // 原始文件大小
-  compressedSize: number;     // 压缩后大小
-  compressionRatio: number;   // 压缩率 (%)
-  processingTime: number;     // 处理时间 (ms)
-  format: string;            // 输出格式
-  metadata?: {               // 图片元数据
-    width: number;
-    height: number;
-    colorType: string;
-    bitDepth: number;
-  };
-}
-```
-
-## 🔌 Vite 插件
-
-Rusty-Pic 提供了 Vite 插件，可以在构建时自动压缩项目中的图片资源。
-
-### 安装和配置
-
-```javascript
-// vite.config.js
+Enable WebP transcode:
+```ts path=null start=null
 import { defineConfig } from 'vite';
 import { rustyPic } from '@fe-fast/rusty-pic/vite';
 
 export default defineConfig({
   plugins: [
     rustyPic({
-      // 基本配置
-      quality: 80,
-      format: 'webp',
-      
-      // 高级配置
-      resize: {
-        maxWidth: 1920,
-        maxHeight: 1080
-      },
-      
-      // 环境配置
-      dev: {
-        enabled: false // 开发环境禁用
-      },
-      
-      build: {
-        enabled: true,
-        generateWebp: true
-      }
+      format: 'webp',      // target format
+      transcode: true,     // allow cross-format rename
+      quality: 80,         // 1-100
+      // optional
+      resize: { maxWidth: 1920, maxHeight: 1080, fit: 'inside' },
+      cache: { enabled: true },
+      dev: { enabled: false },
+      build: { enabled: true },
+      verbose: true
     })
   ]
 });
 ```
 
-### 插件特性
-
-- **自动压缩**: 构建时自动检测和压缩图片
-- **多格式输出**: 同时生成多种格式的图片
-- **智能缓存**: 避免重复压缩相同图片
-- **开发优化**: 开发环境可选择性启用
-- **详细日志**: 提供压缩进度和结果统计
-
-查看 [Vite 插件完整文档](VITE_PLUGIN_USAGE.md) 了解更多配置选项。
-
-## 🏗️ 开发
-
-### 环境要求
-
-- Node.js 18+
-- Rust 1.70+
-- wasm-pack
-
-### 构建项目
-
-```bash
-# 克隆项目
-git clone https://github.com/fe-fast/rusty-pic.git
-cd rusty-pic
-
-# 安装依赖
-pnpm install
-
-# 构建 WASM 模块
-pnpm run build:wasm
-
-# 启动开发服务器
-pnpm run dev
-
-# 构建生产版本
-pnpm run build
+Enable AVIF transcode:
+```ts path=null start=null
+rustyPic({ format: 'avif', transcode: true, quality: 70 })
 ```
-
-### 项目结构
-
-```
-rusty-pic/
-├── crates/
-│   ├── rusty-pic-core/     # 核心压缩引擎 (Rust)
-│   └── rusty-pic-wasm/     # WASM 绑定层
-├── src/
-│   ├── lib/                # JavaScript API
-│   ├── cli/                # CLI 工具
-│   ├── pages/              # Web 演示页面
-│   └── components/         # React 组件
-├── pkg/                    # 生成的 WASM 包
-└── dist/                   # 构建输出
-```
-
-### 运行测试
-
-```bash
-# Rust 测试
-cargo test
-
-# JavaScript 测试
-pnpm test
-
-# 性能基准测试
-pnpm run bench
-```
-
-## 📊 性能对比
-
-| 工具 | 压缩率 | 处理速度 | 模块大小 | 质量保持 |
-|------|--------|----------|----------|----------|
-| Rusty-Pic | 92% | 5x | 1.8MB | ⭐⭐⭐⭐⭐ |
-| imagemin | 75% | 1x | 15MB+ | ⭐⭐⭐⭐ |
-| squoosh | 80% | 2x | 3.2MB | ⭐⭐⭐⭐ |
-
-## 🤝 贡献
-
-欢迎贡献代码！请查看 [贡献指南](CONTRIBUTING.md) 了解详细信息。
-
-### 开发流程
-
-1. Fork 项目
-2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 创建 Pull Request
-
-## 📄 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
-
-## 🙏 致谢
-
-- [image-rs](https://github.com/image-rs/image) - Rust 图像处理库
-- [wasm-bindgen](https://github.com/rustwasm/wasm-bindgen) - Rust 和 WebAssembly 绑定
-- [Vite](https://vitejs.dev/) - 快速的前端构建工具
-
-## 📞 支持
-
-- 📧 邮箱: support@fe-fast.com
-- 🐛 问题反馈: [GitHub Issues](https://github.com/fe-fast/rusty-pic/issues)
-- 💬 讨论: [GitHub Discussions](https://github.com/fe-fast/rusty-pic/discussions)
 
 ---
 
-⭐ 如果这个项目对你有帮助，请给我们一个 star！
+## 🔧 Webpack Usage | Webpack 使用
+
+Add the plugin and ensure images are treated as assets:
+```js path=null start=null
+import RustyPicWebpackPlugin from '@fe-fast/rusty-pic/webpack';
+
+export default {
+  mode: 'production',
+  module: {
+    rules: [
+      { test: /\.(png|jpe?g|webp|avif)$/i, type: 'asset/resource' }
+    ]
+  },
+  output: {
+    assetModuleFilename: 'assets/[name].[contenthash:8][ext]'
+  },
+  plugins: [
+    new RustyPicWebpackPlugin({
+      // default keeps original ext (no transcode)
+      // set webp/avif to transcode and auto-rewrite references
+      format: 'webp',
+      quality: 80,
+      verbose: true
+    })
+  ]
+};
+```
+
+Notes | 说明：
+- Webpack 分支下，设置 format!='auto' 即表示允许跨格式转码（例如 'webp'/'avif'）。插件会安全地改名并替换文本资产中的引用。
+- 若你只想同格式压缩但不改扩展名，设置 format:'auto' 即可。
+
+---
+
+## 🧠 Defaults & Options | 默认与选项
+
+- format: 'auto'（默认） → 同扩展名压缩；不变更后缀
+- transcode: false（默认） → 仅当设为 true 并 format≠原扩展名时才跨格式
+- quality: 80（默认）
+- resize: { maxWidth?, maxHeight?, fit? }（Vite/Webpack 同）
+- cache.enabled: true（默认）
+- dev.enabled: false（默认）
+- build.enabled: true（默认）
+
+---
+
+## 🛠️ Runtime Backends | 运行后端
+
+- Node builds: sharp is used to perform real compression (jpeg/webp/avif/png). This ensures stable, fast build-time optimization and large size reductions.
+- Browser/WASM: the library exposes a WASM path (with Canvas fallback) for browser-side usage; this is independent from the build pipeline integration.
+
+- Node 构建：采用 sharp 实现真实压缩，稳定高效，体积下降显著。
+- 浏览器/WASM：库在浏览器侧可走 WASM（带 Canvas 兜底），与构建期集成相互独立。
+
+---
+
+## 🧪 Integration Tests | 集成测试
+
+We ship runnable integration tests (generated into tests/.tmp) to verify both pipelines:
+- Vite: `pnpm run test:int:vite`
+- Webpack: `pnpm run test:int:webpack`
+
+项目内提供可运行的集成测试（生成到 tests/.tmp）以验证两套管线：
+- Vite：`pnpm run test:int:vite`
+- Webpack：`pnpm run test:int:webpack`
+
+---
+
+## 📚 Programmatic API | 编程接口
+
+Compress a single file (browser example):
+```ts path=null start=null
+import { rustyPic } from '@fe-fast/rusty-pic';
+const file = document.querySelector('input[type="file"]').files[0];
+const result = await rustyPic.compress(file, { format: 'webp', quality: 80 });
+console.log('ratio', result.compressionRatio.toFixed(1), '%');
+```
+
+Batch compress:
+```ts path=null start=null
+const files = Array.from(document.querySelector('input[type="file"]').files);
+const results = await rustyPic.compressBatch(files, { format: 'auto', quality: 85 }, (p) => {
+  console.log(`progress ${p.completed}/${p.total}`);
+});
+```
+
+Smart compress:
+```ts path=null start=null
+const r1 = await rustyPic.smartCompress(file);        // auto params
+const r2 = await rustyPic.smartCompress(file, 100e3); // target 100 KB
+```
+
+Type signatures (simplified):
+```ts path=null start=null
+interface CompressionOptions {
+  format?: 'webp' | 'jpeg' | 'png' | 'avif' | 'auto';
+  quality?: number; // 1-100
+  resize?: { width?: number; height?: number; fit?: 'cover' | 'contain' | 'fill' | 'inside' | 'outside' };
+  optimize?: { colors?: boolean; progressive?: boolean; lossless?: boolean };
+}
+```
+
+---
+
+## 🧰 CLI (optional) | 可选 CLI
+
+```bash
+npm install -g @fe-fast/rusty-pic
+rusty-pic compress input.jpg -q 80 -f webp
+```
+
+> CLI 为扩展能力，推荐优先采用 Vite/Webpack 构建集成以获得自动哈希与引用重写。
+
+---
+
+## ❓ FAQ
+
+- Q: Will hashed filenames and references be correct after compression/transcode?
+  - A: Yes. The plugins operate within the bundler pipeline. Final filenames are content-hashed after compression, and references in JS/CSS/HTML are auto-updated.
+- Q: Is WebP/AVIF default?
+  - A: No. Default is format='auto' and transcode=false (no rename). Enable transcode + set target format to produce WebP/AVIF.
+- Q: Any browser compatibility notes for AVIF?
+  - A: AVIF requires modern browsers. Consider <picture> with multiple sources or server-side negotiation for older browsers.
+
+---
+
+## 🏗️ Development | 开发
+
+```bash
+pnpm install
+pnpm run dev
+pnpm run build
+```
+
+### Requirements | 环境
+- Node.js 18+
+- (for WASM dev) Rust 1.70+ and wasm-pack
+
+---
+
+## 📄 License | 许可证
+
+MIT
+
+---
+
+If this project helps you, please consider giving it a ⭐.
+如果这个项目对你有帮助，欢迎点亮一个 ⭐！
