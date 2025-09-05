@@ -63,7 +63,7 @@ export class RustyPic {
 
         try {
             // 动态导入 WASM 模块
-            const wasmModule = await import('../../pkg/rusty_pic_wasm.js');
+            const wasmModule = await import('@fe-fast/rusty-pic/wasm');
             await wasmModule.default();
             this.wasmModule = wasmModule;
             this.initialized = true;

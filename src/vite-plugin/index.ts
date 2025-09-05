@@ -39,6 +39,10 @@ export interface RustyPicPluginOptions {
     outputDir?: string;
     generateManifest?: boolean;
     preserveOriginal?: boolean;
+    /**
+     * 允许跨格式转码（例如 .png -> .webp/.avif）
+     */
+    transcode?: boolean;
 
     // 环境配置
     dev?: {
