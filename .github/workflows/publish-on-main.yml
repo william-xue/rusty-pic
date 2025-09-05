@@ -1,0 +1,79 @@
+name: Publish on main
+
+on:
+  push:
+    branches: [ main ]
+
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build and Publish to npm (main)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          always-auth: true
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+            ~/.pnpm-store
+          key: ${{ runner.os }}-deps-main-${{ hashFiles('**/Cargo.lock', '**/pnpm-lock.yaml') }}
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build package
+        run: pnpm run build
+
+      - name: Run Rust tests
+        run: pnpm run test:rust
+
+      - name: Check if version already published
+        id: check
+        shell: bash
+        run: |
+          PKG_NAME=$(node -p "require('./package.json').name")
+          PKG_VER=$(node -p "require('./package.json').version")
+          echo "Package: $PKG_NAME@$PKG_VER"
+          node -e "const {execSync}=require('child_process');const name=process.argv[2];const ver=process.argv[3];try{const out=execSync('npm view '+name+' versions --json',{encoding:'utf8'});const arr=JSON.parse(out);if(Array.isArray(arr)&&arr.includes(ver)){process.exit(0)}else{process.exit(1)}}catch(e){process.exit(1)}" "$PKG_NAME" "$PKG_VER"
+          if [ $? -eq 0 ]; then echo "already=true" >> $GITHUB_OUTPUT; else echo "already=false" >> $GITHUB_OUTPUT; fi
+
+      - name: Publish to npm
+        if: steps.check.outputs.already == 'false'
+        run: pnpm publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Skip publish (already exists)
+        if: steps.check.outputs.already == 'true'
+        run: echo "Version already published, skipping."
+
