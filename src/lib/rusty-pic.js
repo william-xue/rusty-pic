@@ -94,18 +94,60 @@ export class RustyPic {
 
         const originalSize = inputData.length;
 
-        // Node 环境：当前禁用 WASM/Canvas，避免构建期崩溃；直接透传（保持管线可运行）
+        // Node 环境：使用 sharp 进行无头压缩（构建期稳定）。若 sharp 不可用，则透传。
         if (typeof window === 'undefined') {
-            const processingTime = Date.now() - startTime;
-            const outputFormat = options.format === 'auto' ? 'png' : (options.format || 'png');
-            return {
-                data: inputData,
-                originalSize,
-                compressedSize: inputData.length,
-                compressionRatio: 0,
-                processingTime,
-                format: outputFormat,
-            };
+            try {
+                const sharpMod = await import('sharp');
+                const sharp = sharpMod.default || sharpMod;
+                const buf = Buffer.from(inputData);
+                let img = sharp(buf, { failOn: 'none' });
+
+                // 兼容 width/height 与 maxWidth/maxHeight
+                const r = options.resize || {};
+                const width = r.width ?? r.maxWidth;
+                const height = r.height ?? r.maxHeight;
+                if (width || height) {
+                    img = img.resize({ width, height, fit: r.fit || 'inside' });
+                }
+
+                const fmt = (options.format && options.format !== 'auto') ? options.format : 'png';
+                const q = typeof options.quality === 'number' ? Math.max(1, Math.min(100, options.quality)) : 80;
+                const opt = options.optimize || {};
+
+                if (fmt === 'jpeg' || fmt === 'jpg') {
+                    img = img.jpeg({ quality: q, progressive: !!opt.progressive });
+                } else if (fmt === 'webp') {
+                    img = img.webp({ quality: q });
+                } else if (fmt === 'avif') {
+                    img = img.avif({ quality: q });
+                } else {
+                    // png：开启 palette 量化以利用 quality
+                    img = img.png({ compressionLevel: 9, palette: true, quality: q });
+                }
+
+                const out = await img.toBuffer();
+                const processingTime = Date.now() - startTime;
+                return {
+                    data: new Uint8Array(out),
+                    originalSize,
+                    compressedSize: out.length,
+                    compressionRatio: Math.max(0, (1 - out.length / originalSize) * 100),
+                    processingTime,
+                    format: fmt === 'jpg' ? 'jpeg' : fmt,
+                };
+            } catch (e) {
+                // 未安装 sharp 或运行失败，透传
+                const processingTime = Date.now() - startTime;
+                const outputFormat = options.format === 'auto' ? 'png' : (options.format || 'png');
+                return {
+                    data: inputData,
+                    originalSize,
+                    compressedSize: inputData.length,
+                    compressionRatio: 0,
+                    processingTime,
+                    format: outputFormat,
+                };
+            }
         }
 
         // 尝试使用 WASM 模块

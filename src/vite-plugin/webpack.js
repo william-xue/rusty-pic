@@ -196,7 +196,7 @@ class RustyPicWebpackPlugin {
                                         }
 
                                         if (compressed && compressed.data.length < buf.length) {
-                                            compilation.updateAsset(filename, new RawSource(compressed.data));
+compilation.updateAsset(filename, new RawSource(Buffer.isBuffer(compressed.data) ? compressed.data : Buffer.from(compressed.data)));
                                             this.processedFiles.set(filename, {
                                                 originalPath: filename,
                                                 outputPath: filename,
