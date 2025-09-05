@@ -139,9 +139,10 @@ class RustyPicWebpackPlugin {
 
         compiler.hooks.compilation.tap(pluginName, (compilation) => {
             // 处理资源
-            // 在优化尺寸阶段更新原资产的字节，确保 contenthash 和引用自然生效
+            // 在优化尺寸阶段更新原资产的字节，确保 contenthash 和引用自然生效，且在允许时支持跨格式改名与引用替换
             const stage = compiler.webpack?.Compilation?.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE || compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE || compilation.PROCESS_ASSETS_STAGE_OPTIMIZE;
 
+            const renamePairs = [];
             compilation.hooks.processAssets.tapPromise(
                 {
                     name: pluginName,
@@ -196,7 +197,27 @@ class RustyPicWebpackPlugin {
                                         }
 
                                         if (compressed && compressed.data.length < buf.length) {
-compilation.updateAsset(filename, new RawSource(Buffer.isBuffer(compressed.data) ? compressed.data : Buffer.from(compressed.data)));
+                                            const allowTranscode = this.options.format && this.options.format !== 'auto';
+                                            const needTranscode = allowTranscode && this.options.format !== ext;
+
+                                            if (needTranscode) {
+                                                // 生成新文件名并重命名资产，尽量避免重复发射引发冲突
+                                                const newName = filename.replace(/\.[^./]+$/, `.${compressed.format}`);
+                                                if (typeof compilation.renameAsset === 'function') {
+                                                    // 先更新内容，再改名，或先改名再更新内容都可；此处采用先改名
+                                                    compilation.renameAsset(filename, newName);
+                                                    compilation.updateAsset(newName, new RawSource(Buffer.isBuffer(compressed.data) ? compressed.data : Buffer.from(compressed.data)));
+                                                } else {
+                                                    // 兼容旧版本：先删除旧资产，再发射新资产，避免同名冲突
+                                                    if (compilation.getAsset(filename)) {
+                                                        compilation.deleteAsset(filename);
+                                                    }
+                                                    compilation.emitAsset(newName, new RawSource(Buffer.isBuffer(compressed.data) ? compressed.data : Buffer.from(compressed.data)));
+                                                }
+                                                renamePairs.push([filename, newName]);
+                                            } else {
+                                                compilation.updateAsset(filename, new RawSource(Buffer.isBuffer(compressed.data) ? compressed.data : Buffer.from(compressed.data)));
+                                            }
                                             this.processedFiles.set(filename, {
                                                 originalPath: filename,
                                                 outputPath: filename,
@@ -218,6 +239,23 @@ compilation.updateAsset(filename, new RawSource(Buffer.isBuffer(compressed.data)
                         }
 
                         await Promise.all(tasks);
+
+                        // 执行引用替换并删除旧资产
+                        if (renamePairs.length > 0) {
+                            for (const [from, to] of renamePairs) {
+                                for (const [assetName, asset] of Object.entries(compilation.assets)) {
+                                    const src = asset.source();
+                                    if (typeof src === 'string') {
+                                        const next = src.split(from).join(to);
+                                        if (next !== src) {
+                                            compilation.updateAsset(assetName, new RawSource(next));
+                                        }
+                                    }
+                                }
+                                // 删除旧资产
+                                compilation.deleteAsset(from);
+                            }
+                        }
                     } catch (error) {
                         console.error(`[rusty-pic] Error optimizing assets:`, error);
                     }

@@ -76,6 +76,13 @@ export interface RustyPicPluginOptions {
     outputDir?: string;
 
     /**
+     * 允许跨格式转码（例如 .png -> .webp）
+     * 若为 false，将强制保持原扩展名以避免引用问题
+     * @default false
+     */
+    transcode?: boolean;
+
+    /**
      * 生成压缩清单文件
      * @default false
      */

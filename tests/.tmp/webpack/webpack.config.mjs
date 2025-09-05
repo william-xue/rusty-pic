@@ -21,7 +21,7 @@ export default {
   plugins: [
     new RustyPicWebpackPlugin({
       quality: 80,
-      format: 'auto',
+      format: 'webp',
       verbose: true
     })
   ]

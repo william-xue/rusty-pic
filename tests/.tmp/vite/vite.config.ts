@@ -5,7 +5,8 @@ export default defineConfig({
   plugins: [
     rustyPic({
       quality: 80,
-      format: 'auto',
+      format: 'webp',
+      transcode: true,
       verbose: true,
       dev: { enabled: false },
       build: { enabled: true }
