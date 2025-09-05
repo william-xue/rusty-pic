@@ -4,10 +4,10 @@
  * 独立的 Webpack 插件，用于非 Vite 项目
  */
 
-const { readFile, writeFile, mkdir } = require('fs/promises');
-const { dirname, basename, extname, join, relative } = require('path');
-const { existsSync } = require('fs');
-const { createHash } = require('crypto');
+import { readFile, writeFile, mkdir } from 'fs/promises';
+import { dirname, basename, extname, join, relative } from 'path';
+import { existsSync } from 'fs';
+import { createHash } from 'crypto';
 
 class RustyPicWebpackPlugin {
     constructor(options = {}) {
@@ -139,38 +139,125 @@ class RustyPicWebpackPlugin {
 
         compiler.hooks.compilation.tap(pluginName, (compilation) => {
             // 处理资源
-            compilation.hooks.processAssets.tapAsync(
+            // 在优化尺寸阶段更新原资产的字节，确保 contenthash 和引用自然生效，且在允许时支持跨格式改名与引用替换
+            const stage = compiler.webpack?.Compilation?.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE || compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE || compilation.PROCESS_ASSETS_STAGE_OPTIMIZE;
+
+            const renamePairs = [];
+            compilation.hooks.processAssets.tapPromise(
                 {
                     name: pluginName,
-                    stage: compilation.PROCESS_ASSETS_STAGE_OPTIMIZE,
+                    stage,
                 },
-                async (assets, callback) => {
+                async (assets) => {
+                    let RawSource;
                     try {
-                        // 处理所有匹配的资源
-                        const promises = [];
+                        // ESM/CJS 兼容导入
+                        const ws = await import('webpack-sources');
+                        RawSource = ws.RawSource || ws.default?.RawSource;
+                    } catch (e) {
+                        throw e;
+                    }
+                    try {
+                        const tasks = [];
 
                         for (const [filename, asset] of Object.entries(assets)) {
-                            if (this.shouldProcessFile(filename)) {
-                                const content = asset.source();
-                                if (Buffer.isBuffer(content) || content instanceof Uint8Array) {
-                                    promises.push(this.processAsset(filename, content));
-                                }
+                            if (!this.shouldProcessFile(filename)) continue;
+
+                            const src = compilation.getAsset(filename)?.source?.source?.();
+                            if (typeof src === 'string' || Buffer.isBuffer(src) || src instanceof Uint8Array) {
+                                const buf = typeof src === 'string' ? Buffer.from(src) : Buffer.from(src);
+
+                                tasks.push((async () => {
+                                    try {
+                                        // 强制与原始扩展名一致，避免需要改引用
+                                        const ext = extname(filename).slice(1).toLowerCase();
+                                        const effectiveFormat = (this.options.format === 'auto' || (this.options.format && this.options.format !== ext)) ? ext : this.options.format;
+
+                                        const cacheKey = this.getCacheKey(buf, filename + `|fmt:${effectiveFormat}`);
+                                        const cachePath = join(this.options.cache.dir, `${cacheKey}.${effectiveFormat}`);
+
+                                        let compressed = null;
+                                        if (this.options.cache.enabled && existsSync(cachePath)) {
+                                            const cachedContent = await readFile(cachePath);
+                                            compressed = { data: cachedContent, format: effectiveFormat, originalSize: buf.length, compressedSize: cachedContent.length, compressionRatio: (buf.length - cachedContent.length) / buf.length * 100 };
+                                        } else {
+                                            const rp = await this.initRustyPic();
+                                            const file = new File([buf], basename(filename));
+                                            const result = await rp.compress(file, {
+                                                format: effectiveFormat,
+                                                quality: this.options.quality,
+                                                optimize: this.options.optimize ?? { colors: true, progressive: false, lossless: false },
+                                            });
+                                            // 仅在更小的时候替换并写缓存
+                                            if (this.options.cache.enabled) {
+                                                await mkdir(this.options.cache.dir, { recursive: true });
+                                                await writeFile(cachePath, result.data);
+                                            }
+                                            compressed = result;
+                                        }
+
+                                        if (compressed && compressed.data.length < buf.length) {
+                                            const allowTranscode = this.options.format && this.options.format !== 'auto';
+                                            const needTranscode = allowTranscode && this.options.format !== ext;
+
+                                            if (needTranscode) {
+                                                // 生成新文件名并重命名资产，尽量避免重复发射引发冲突
+                                                const newName = filename.replace(/\.[^./]+$/, `.${compressed.format}`);
+                                                if (typeof compilation.renameAsset === 'function') {
+                                                    // 先更新内容，再改名，或先改名再更新内容都可；此处采用先改名
+                                                    compilation.renameAsset(filename, newName);
+                                                    compilation.updateAsset(newName, new RawSource(Buffer.isBuffer(compressed.data) ? compressed.data : Buffer.from(compressed.data)));
+                                                } else {
+                                                    // 兼容旧版本：先删除旧资产，再发射新资产，避免同名冲突
+                                                    if (compilation.getAsset(filename)) {
+                                                        compilation.deleteAsset(filename);
+                                                    }
+                                                    compilation.emitAsset(newName, new RawSource(Buffer.isBuffer(compressed.data) ? compressed.data : Buffer.from(compressed.data)));
+                                                }
+                                                renamePairs.push([filename, newName]);
+                                            } else {
+                                                compilation.updateAsset(filename, new RawSource(Buffer.isBuffer(compressed.data) ? compressed.data : Buffer.from(compressed.data)));
+                                            }
+                                            this.processedFiles.set(filename, {
+                                                originalPath: filename,
+                                                outputPath: filename,
+                                                content: compressed.data,
+                                                originalSize: compressed.originalSize,
+                                                compressedSize: compressed.compressedSize,
+                                                compressionRatio: compressed.compressionRatio,
+                                            });
+
+                                            if (this.options.verbose) {
+                                                console.log(`[rusty-pic] optimized ${filename} (${compressed.compressionRatio.toFixed(1)}% reduction)`);
+                                            }
+                                        }
+                                    } catch (e) {
+                                        console.error(`[rusty-pic] Failed to optimize ${filename}:`, e);
+                                    }
+                                })());
                             }
                         }
 
-                        await Promise.all(promises);
+                        await Promise.all(tasks);
 
-                        // 添加压缩后的资源到编译结果
-                        for (const [originalPath, processed] of this.processedFiles) {
-                            compilation.emitAsset(processed.outputPath, {
-                                source: () => processed.content,
-                                size: () => processed.content.length,
-                            });
+                        // 执行引用替换并删除旧资产
+                        if (renamePairs.length > 0) {
+                            for (const [from, to] of renamePairs) {
+                                for (const [assetName, asset] of Object.entries(compilation.assets)) {
+                                    const src = asset.source();
+                                    if (typeof src === 'string') {
+                                        const next = src.split(from).join(to);
+                                        if (next !== src) {
+                                            compilation.updateAsset(assetName, new RawSource(next));
+                                        }
+                                    }
+                                }
+                                // 删除旧资产
+                                compilation.deleteAsset(from);
+                            }
                         }
-
-                        callback();
                     } catch (error) {
-                        callback(error);
+                        console.error(`[rusty-pic] Error optimizing assets:`, error);
                     }
                 }
             );
@@ -200,4 +287,4 @@ class RustyPicWebpackPlugin {
     }
 }
 
-module.exports = RustyPicWebpackPlugin;
+export default RustyPicWebpackPlugin;

@@ -115,6 +115,7 @@ export function rustyPicPlugin(options: RustyPicPluginOptions = {}): Plugin {
         outputDir = 'dist/assets',
         generateManifest = false,
         preserveOriginal = false,
+        transcode = false,
         dev = {
             enabled: false,
             quality: 60,
@@ -309,13 +310,11 @@ export function rustyPicPlugin(options: RustyPicPluginOptions = {}): Plugin {
             config = resolvedConfig;
             isDev = config.command === 'serve';
 
-            // 在开发模式下检查是否启用
             if (isDev && !dev.enabled) {
                 log('info', 'Rusty-Pic disabled in development mode');
                 return;
             }
 
-            // 在生产模式下检查是否启用
             if (!isDev && !build.enabled) {
                 log('info', 'Rusty-Pic disabled in build mode');
                 return;
@@ -325,75 +324,128 @@ export function rustyPicPlugin(options: RustyPicPluginOptions = {}): Plugin {
         },
 
         async buildStart() {
-            // 初始化 rusty-pic
             await rustyPic.init();
             log('debug', 'Rusty-Pic WASM module initialized');
         },
 
-        async load(id) {
-            // 检查是否应该处理此文件
-            if (!filter(id)) return null;
+        // 关键改动：不再在 load 阶段写入磁盘；改为在打包阶段替换 asset 源字节
+        async generateBundle(_options, bundle) {
+            if (isDev || !build.enabled) return;
 
-            // 检查文件是否存在
-            if (!existsSync(id)) return null;
+            const imageExtRe = /\.(png|jpe?g|webp|avif)$/i;
+            const renameMap: Array<{ from: string, to: string }> = [];
 
-            // 在开发模式下检查是否启用
-            if (isDev && !dev.enabled) return null;
+            for (const [fileName, output] of Object.entries(bundle)) {
+                if (output.type !== 'asset') continue;
+                if (!imageExtRe.test(fileName)) continue;
 
-            // 在生产模式下检查是否启用
-            if (!isDev && !build.enabled) return null;
+                const originalSource = output.source;
+                const originalBuffer = typeof originalSource === 'string' ? Buffer.from(originalSource) : Buffer.from(originalSource);
 
-            try {
-                const stats = await stat(id);
-                if (!stats.isFile()) return null;
+                const originalExt = (fileName.split('.').pop() || '').toLowerCase();
+                // 确定本次压缩的实际格式：若未开启 transcode，则强制使用原扩展名；否则允许切换到用户指定格式
+                const effectiveFormat = (() => {
+                    if (format === 'auto') return originalExt as any;
+                    if (!transcode && format.toLowerCase() !== originalExt) {
+                        log('warn', `Requested format \"${format}\" differs from original extension .${originalExt} for ${fileName}. Transcode disabled, falling back to original format.`);
+                        return originalExt as any;
+                    }
+                    return (format as any).toLowerCase();
+                })();
 
-                log('debug', `Processing image: ${id}`);
-
-                const processed = await processImage(id);
-                if (processed) {
-                    processedFiles.push(processed);
+                // 缓存命中检查
+                const cacheKey = getCacheKey(fileName, originalBuffer);
+                const cachedPath = getCachePath(cacheKey, effectiveFormat);
+                if (cache.enabled && existsSync(cachedPath)) {
+                    const cachedContent = await readFile(cachedPath);
+                    if (cachedContent.length <= originalBuffer.length) {
+                        output.source = cachedContent;
+                        processedFiles.push({
+                            originalPath: fileName,
+                            compressedPath: fileName,
+                            originalSize: originalBuffer.length,
+                            compressedSize: cachedContent.length,
+                            compressionRatio: ((originalBuffer.length - cachedContent.length) / originalBuffer.length) * 100,
+                            processingTime: 0,
+                            format: effectiveFormat,
+                        });
+                        log('debug', `Used cached compressed asset for ${fileName}`);
+                        continue;
+                    }
                 }
 
-                return null; // 让 Vite 继续处理原始文件
-            } catch (error) {
-                log('error', `Error processing ${id}:`, error);
-                return null;
+                try {
+                    const start = Date.now();
+                    const file = new File([originalBuffer], basename(fileName));
+                    const result = await rustyPic.compress(file, {
+                        format: effectiveFormat as any,
+                        quality,
+                        resize,
+                        optimize,
+                    } as CompressionOptions);
+
+                    // 仅在更小的时候替换
+                    if (result.data.length < originalBuffer.length) {
+                        output.source = result.data;
+
+                        // 若需要跨格式转码并且扩展名变化，重命名资产，记录映射待整体替换
+                        const currentExt = (fileName.split('.').pop() || '').toLowerCase();
+                        if (transcode && effectiveFormat !== currentExt) {
+                            const base = fileName.replace(/\.[^./]+$/, '');
+                            const newName = `${base}.${result.format}`;
+                            renameMap.push({ from: fileName, to: newName });
+                            // 修改当前资产文件名
+                            (output as any).fileName = newName;
+                        }
+
+                        // 写缓存
+                        if (cache.enabled) {
+                            await ensureDir(cache.dir!);
+                            await writeFile(cachedPath, result.data);
+                        }
+
+                        const took = Date.now() - start;
+                        processedFiles.push({
+                            originalPath: fileName,
+                            compressedPath: fileName,
+                            originalSize: result.originalSize,
+                            compressedSize: result.compressedSize,
+                            compressionRatio: result.compressionRatio,
+                            processingTime: took,
+                            format: result.format,
+                        });
+
+                        log('info', `Optimized asset ${fileName} (${result.compressionRatio.toFixed(1)}% reduction)`);
+                    } else {
+                        log('debug', `Skip ${fileName} because compressed size is not smaller.`);
+                    }
+                } catch (err) {
+                    log('error', `Failed to optimize ${fileName}:`, err as any);
+                }
             }
-        },
 
-        async generateBundle(options, bundle) {
-            // 在生产构建时更新资源引用
-            if (!isDev && build.enabled) {
-                for (const [fileName, chunk] of Object.entries(bundle)) {
-                    if (chunk.type === 'chunk' && chunk.code) {
-                        let updatedCode = chunk.code;
-
-                        // 更新图片引用路径
-                        for (const processed of processedFiles) {
-                            const originalPath = relative(process.cwd(), processed.originalPath);
-                            const compressedPath = relative(process.cwd(), processed.compressedPath);
-
-                            // 简单的字符串替换，实际项目中可能需要更复杂的逻辑
-                            updatedCode = updatedCode.replace(
-                                new RegExp(originalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
-                                compressedPath
-                            );
+            // 若发生了跨格式改名，则需要在所有 chunk 和文本资产中替换引用
+            if (renameMap.length > 0) {
+                for (const [n, out] of Object.entries(bundle)) {
+                    if ((out as any).type === 'chunk' && (out as any).code) {
+                        let code = (out as any).code as string;
+                        for (const { from, to } of renameMap) {
+                            code = code.split(from).join(to);
                         }
-
-                        if (updatedCode !== chunk.code) {
-                            chunk.code = updatedCode;
-                            log('debug', `Updated asset references in ${fileName}`);
+                        (out as any).code = code;
+                    } else if ((out as any).type === 'asset' && typeof (out as any).source === 'string') {
+                        let src = (out as any).source as string;
+                        for (const { from, to } of renameMap) {
+                            src = src.split(from).join(to);
                         }
+                        (out as any).source = src;
                     }
                 }
             }
         },
 
         async writeBundle() {
-            // 生成清单文件
             await generateManifestFile();
-
-            // 清理处理文件列表
             processedFiles.length = 0;
         },
 

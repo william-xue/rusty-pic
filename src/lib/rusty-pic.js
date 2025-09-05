@@ -46,7 +46,23 @@ export class RustyPic {
         try {
             // 动态导入 WASM 模块
             const wasmModule = await import('@fe-fast/rusty-pic/wasm');
-            await wasmModule.default();
+
+            // Node 环境优先用文件字节初始化，避免 fetch 加载 file:// 失败
+            if (typeof window === 'undefined') {
+                try {
+                    const { readFile } = await import('fs/promises');
+                    const { fileURLToPath } = await import('url');
+                    const wasmUrl = new URL('../../pkg/rusty_pic_wasm_bg.wasm', import.meta.url);
+                    const wasmBytes = await readFile(fileURLToPath(wasmUrl));
+                    await wasmModule.default(wasmBytes);
+                } catch (e) {
+                    // 兜底：尝试默认初始化（可能会用 fetch）
+                    await wasmModule.default();
+                }
+            } else {
+                await wasmModule.default();
+            }
+
             this.wasmModule = wasmModule;
             this.initialized = true;
         } catch (error) {
@@ -78,6 +94,62 @@ export class RustyPic {
 
         const originalSize = inputData.length;
 
+        // Node 环境：使用 sharp 进行无头压缩（构建期稳定）。若 sharp 不可用，则透传。
+        if (typeof window === 'undefined') {
+            try {
+                const sharpMod = await import('sharp');
+                const sharp = sharpMod.default || sharpMod;
+                const buf = Buffer.from(inputData);
+                let img = sharp(buf, { failOn: 'none' });
+
+                // 兼容 width/height 与 maxWidth/maxHeight
+                const r = options.resize || {};
+                const width = r.width ?? r.maxWidth;
+                const height = r.height ?? r.maxHeight;
+                if (width || height) {
+                    img = img.resize({ width, height, fit: r.fit || 'inside' });
+                }
+
+                const fmt = (options.format && options.format !== 'auto') ? options.format : 'png';
+                const q = typeof options.quality === 'number' ? Math.max(1, Math.min(100, options.quality)) : 80;
+                const opt = options.optimize || {};
+
+                if (fmt === 'jpeg' || fmt === 'jpg') {
+                    img = img.jpeg({ quality: q, progressive: !!opt.progressive });
+                } else if (fmt === 'webp') {
+                    img = img.webp({ quality: q });
+                } else if (fmt === 'avif') {
+                    img = img.avif({ quality: q });
+                } else {
+                    // png：开启 palette 量化以利用 quality
+                    img = img.png({ compressionLevel: 9, palette: true, quality: q });
+                }
+
+                const out = await img.toBuffer();
+                const processingTime = Date.now() - startTime;
+                return {
+                    data: new Uint8Array(out),
+                    originalSize,
+                    compressedSize: out.length,
+                    compressionRatio: Math.max(0, (1 - out.length / originalSize) * 100),
+                    processingTime,
+                    format: fmt === 'jpg' ? 'jpeg' : fmt,
+                };
+            } catch (e) {
+                // 未安装 sharp 或运行失败，透传
+                const processingTime = Date.now() - startTime;
+                const outputFormat = options.format === 'auto' ? 'png' : (options.format || 'png');
+                return {
+                    data: inputData,
+                    originalSize,
+                    compressedSize: inputData.length,
+                    compressionRatio: 0,
+                    processingTime,
+                    format: outputFormat,
+                };
+            }
+        }
+
         // 尝试使用 WASM 模块
         if (this.wasmModule && this.initialized) {
             try {
@@ -103,10 +175,10 @@ export class RustyPic {
         // 设置压缩选项
         if (options.format) opt.setFormat(options.format);
         if (options.quality !== undefined) opt.setQuality(options.quality);
-        if (options.resize) {
+        if (options.resize && typeof opt.setResize === 'function') {
             opt.setResize(options.resize.width, options.resize.height, options.resize.fit);
         }
-        if (options.optimize) {
+        if (options.optimize && typeof opt.setOptimize === 'function') {
             opt.setOptimize(options.optimize.colors, options.optimize.progressive, options.optimize.lossless);
         }
 
