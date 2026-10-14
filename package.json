@@ -62,7 +62,7 @@
   "homepage": "https://github.com/william-xue/rusty-pic#readme",
   "scripts": {
     "dev": "vite",
-    "build": "pnpm run build:wasm && pnpm run build:lib && vite build",
+    "build": "pnpm run build:wasm && pnpm run build:lib && vite build && cp dist/index.html dist/404.html",
     "build:wasm": "export PATH=\"$HOME/.cargo/bin:$PATH\" && cd crates/rusty-pic-wasm && wasm-pack build --target web --out-dir ../../pkg --features \"png\" && cd ../.. && rm -f pkg/.gitignore",
     "build:lib": "mkdir -p dist/lib dist/vite-plugin dist/cli && cp src/lib/rusty-pic.js dist/lib/ && cp -r src/vite-plugin/* dist/vite-plugin/ && node build-cli-fixed.cjs",
     "prepublishOnly": "pnpm run build:wasm && pnpm run build:lib",
