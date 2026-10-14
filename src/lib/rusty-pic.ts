@@ -24,9 +24,12 @@ export interface CompressionResult {
     data: Uint8Array;
     originalSize: number;
     compressedSize: number;
+    /** 节省的百分比（0-100），值越大压缩越多 */
     compressionRatio: number;
     processingTime: number;
     format: string;
+    /** 实际执行压缩的引擎 */
+    engine: 'wasm' | 'canvas';
     metadata?: {
         width: number;
         height: number;
@@ -97,10 +100,10 @@ export class RustyPic {
 
         const originalSize = inputData.length;
 
-        // 尝试使用 WASM 模块（wasm 端当前仅实现 PNG 编码，且 wasm 构建只编入 PNG 解码；
+        // 尝试使用 WASM 模块（wasm 端实现 PNG 无损 + JPEG 有损编解码，
         // 其他格式直接走 Canvas 后备，避免白等一次失败）
         const format = options.format;
-        const wasmFriendly = !format || format === 'auto' || format === 'png';
+        const wasmFriendly = !format || ['auto', 'png', 'jpeg', 'jpg'].includes(format);
         if (this.wasmModule && this.initialized && wasmFriendly) {
             try {
                 return await this.compressWithWasm(inputData, options, originalSize, startTime);
@@ -151,9 +154,11 @@ export class RustyPic {
             data: result.data,
             originalSize: result.originalSize,
             compressedSize: result.compressedSize,
-            compressionRatio: result.compressionRatio,
+            // core 返回的是「压缩后/原始」的比例（0-1），统一转成节省百分比
+            compressionRatio: Math.max(0, (1 - result.compressionRatio) * 100),
             processingTime,
             format: result.format,
+            engine: 'wasm',
         };
     }
 
@@ -230,6 +235,7 @@ export class RustyPic {
                                     compressionRatio: Math.max(0, (1 - data.length / originalSize) * 100),
                                     processingTime,
                                     format: outputFormat,
+                                    engine: 'canvas',
                                     metadata: {
                                         width,
                                         height,

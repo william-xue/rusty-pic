@@ -10,8 +10,8 @@ repository = "https://example.com/rusty-pic"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-# 默认开启 PNG 支持与可读的 panic 日志；wee_alloc 已停止维护且有内存缺陷，改为可选
-default = ["png", "console_error_panic_hook"]
+# 默认开启 PNG/JPEG 支持与可读的 panic 日志；wee_alloc 已停止维护且有内存缺陷，改为可选
+default = ["png", "jpeg", "console_error_panic_hook"]
 # 可选功能：启用更友好的 panic 输出（开发调试用）
 console_error_panic_hook = ["dep:console_error_panic_hook"]
 # 可选功能：启用紧凑分配器（减小体积/分配开销）

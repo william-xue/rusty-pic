@@ -11,6 +11,7 @@ interface CompressedResult {
   compressionRatio: number;
   processingTime: number;
   format: string;
+  engine: 'wasm' | 'canvas';
 }
 
 interface CompressionSettings {
@@ -85,6 +86,7 @@ export default function Demo() {
         compressionRatio: result.compressionRatio,
         processingTime: result.processingTime,
         format: result.format,
+        engine: result.engine,
       };
     } catch (error) {
       console.error('Compression failed:', error);
@@ -206,7 +208,7 @@ export default function Demo() {
         <p className="text-lg text-slate-600 max-w-2xl mx-auto">
           体验 Rusty-Pic 的强大压缩能力，支持拖拽上传、实时处理和效果对比。
           <br />
-          <span className="text-sm text-orange-600">PNG 走 Rust/WASM 高速通道，其他格式自动回退浏览器 Canvas</span>
+          <span className="text-sm text-orange-600">PNG/JPEG 走 Rust/WASM 通道（JPEG 质量可调），其他格式自动回退浏览器 Canvas</span>
         </p>
       </div>
 
@@ -415,9 +417,9 @@ export default function Demo() {
                           </p>
                         </div>
                         <div>
-                          <p className="text-slate-500">输出格式</p>
+                          <p className="text-slate-500">输出 / 引擎</p>
                           <p className="font-medium text-purple-600 uppercase">
-                            {result.format}
+                            {result.format} · {result.engine === 'wasm' ? 'WASM' : 'Canvas'}
                           </p>
                         </div>
                       </div>

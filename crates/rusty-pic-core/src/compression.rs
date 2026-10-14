@@ -329,12 +329,29 @@ impl CompressionEngine {
         let _temp_buffer = self.memory_pool.get_buffer();
 
         match format {
+            // 纯 Rust JPEG 编码路径（image 内置 JpegEncoder，wasm32 可用）
+            #[cfg(feature = "jpeg")]
             "jpeg" | "jpg" => {
-                // JPEG support will be added in future versions
-                Err(CompressionError::UnsupportedFeature(
-                    "JPEG format not yet implemented".to_string(),
-                ))
+                use image::codecs::jpeg::JpegEncoder;
+                use image::ImageEncoder;
+
+                let quality = options.quality.unwrap_or(80).clamp(1, 100);
+                let rgb = img.to_rgb8();
+                let (w, h) = (rgb.width(), rgb.height());
+                let data = rgb.as_raw();
+
+                let mut out: Vec<u8> = Vec::with_capacity(data.len() / 2 + 1024);
+                {
+                    let enc = JpegEncoder::new_with_quality(&mut out, quality);
+                    enc.write_image(data, w, h, image::ColorType::Rgb8)
+                        .map_err(|e| CompressionError::EncodingError(e.to_string()))?;
+                }
+                Ok(out)
             }
+            #[cfg(not(feature = "jpeg"))]
+            "jpeg" | "jpg" => Err(CompressionError::UnsupportedFeature(
+                "JPEG support not enabled".to_string(),
+            )),
             "png" => {
                 // 纯 Rust PNG 编码路径：使用 image::codecs::png::PngEncoder
                 use image::codecs::png::{CompressionType, FilterType, PngEncoder};

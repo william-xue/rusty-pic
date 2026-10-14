@@ -93,6 +93,17 @@ impl JsCompressionResult {
     }
 }
 
+/// 按文件头魔数嗅探输入格式（只识别 wasm 端可解码的格式）
+fn sniff_format(data: &[u8]) -> &'static str {
+    if data.len() > 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF {
+        "jpeg"
+    } else if data.len() > 8 && data[..8] == *b"\x89PNG\r\n\x1a\n" {
+        "png"
+    } else {
+        "unknown"
+    }
+}
+
 /// 简化的 RustyPic 类
 #[wasm_bindgen]
 pub struct RustyPic;
@@ -123,12 +134,30 @@ impl RustyPic {
             // 创建压缩引擎
             let engine = CompressionEngine::new();
 
+            // 解析输出格式：wasm 端支持 PNG（无损）与 JPEG（有损，质量可调）；
+            // webp/avif 等未实现的格式直接 reject，由 JS 层回退 Canvas 处理
+            let format = match options.format.as_deref() {
+                Some("jpeg") | Some("jpg") => "jpeg".to_string(),
+                Some("png") => "png".to_string(),
+                Some(other) => {
+                    return Err(JsValue::from_str(&format!(
+                        "Requested format '{other}' is not supported by WASM; use Canvas fallback"
+                    )))
+                }
+                // auto / 未指定：按输入魔数决定输出（jpeg 进 jpeg 出，png 进 png 出）
+                _ => match sniff_format(&input_vec) {
+                    "jpeg" | "png" => sniff_format(&input_vec).to_string(),
+                    _ => {
+                        return Err(JsValue::from_str(
+                            "Input format not supported by WASM; use Canvas fallback",
+                        ))
+                    }
+                },
+            };
+
             // 构建压缩选项
-            // WASM 端当前仅实现了 PNG 编码器；无论请求何种输出格式均生成 PNG，
-            // 其他格式（webp/jpeg/avif）由 JS 层回退 Canvas 实现
-            let _ = options.format;
             let compression_options = CompressionOptions {
-                format: Some("png".to_string()),
+                format: Some(format),
                 quality: options.quality.or(Some(80)),
                 resize: None,
                 optimize: None,

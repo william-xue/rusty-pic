@@ -51,7 +51,7 @@ jobs:
     
     - name: Build WASM
       working-directory: crates/rusty-pic-wasm
-      run: wasm-pack build --target web --out-dir ../../pkg --features "png"
+      run: wasm-pack build --target web --out-dir ../../pkg --features "png,jpeg"
     
     - name: Build library
       run: pnpm run build:lib
