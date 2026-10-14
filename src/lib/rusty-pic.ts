@@ -44,6 +44,10 @@ export interface BatchProgress {
 
 export type ProgressCallback = (progress: BatchProgress) => void;
 
+// WASM 内 panic（如 trap）时 future_to_promise 的 Promise 可能永远 pending，
+// 必须有超时兜底，否则 UI 会永久卡在“处理中”
+const WASM_COMPRESS_TIMEOUT_MS = 15_000;
+
 /**
  * 主要的 RustyPic 类
  */
@@ -93,8 +97,11 @@ export class RustyPic {
 
         const originalSize = inputData.length;
 
-        // 尝试使用 WASM 模块
-        if (this.wasmModule && this.initialized) {
+        // 尝试使用 WASM 模块（wasm 端当前仅实现 PNG 编码，且 wasm 构建只编入 PNG 解码；
+        // 其他格式直接走 Canvas 后备，避免白等一次失败）
+        const format = options.format;
+        const wasmFriendly = !format || format === 'auto' || format === 'png';
+        if (this.wasmModule && this.initialized && wasmFriendly) {
             try {
                 return await this.compressWithWasm(inputData, options, originalSize, startTime);
             } catch (error) {
@@ -120,17 +127,24 @@ export class RustyPic {
         const rp = new WasmRustyPic();
         const opt = new JsCompressionOptions();
 
-        // 设置压缩选项
+        // wasm 绑定当前仅暴露 setFormat/setQuality；
+        // resize 等缺失能力直接抛错触发 Canvas 后备，避免静默丢参数
         if (options.format) opt.setFormat(options.format);
         if (options.quality !== undefined) opt.setQuality(options.quality);
         if (options.resize) {
+            if (typeof opt.setResize !== 'function') {
+                throw new Error('WASM binding does not support resize yet');
+            }
             opt.setResize(options.resize.width, options.resize.height, options.resize.fit);
         }
-        if (options.optimize) {
+        if (options.optimize && typeof opt.setOptimize === 'function') {
             opt.setOptimize(options.optimize.colors, options.optimize.progressive, options.optimize.lossless);
         }
 
-        const result = await rp.compress(inputData, opt);
+        const result = await this.withTimeout<any>(
+            rp.compress(inputData, opt),
+            WASM_COMPRESS_TIMEOUT_MS
+        );
         const processingTime = Date.now() - startTime;
 
         return {
@@ -141,6 +155,27 @@ export class RustyPic {
             processingTime,
             format: result.format,
         };
+    }
+
+    /**
+     * 给 Promise 加超时：wasm trap 后 promise 可能永远 pending
+     */
+    private withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+        return new Promise<T>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                reject(new Error(`WASM compression timed out after ${ms}ms`));
+            }, ms);
+            promise.then(
+                (value) => {
+                    clearTimeout(timer);
+                    resolve(value);
+                },
+                (error) => {
+                    clearTimeout(timer);
+                    reject(error);
+                }
+            );
+        });
     }
 
     /**

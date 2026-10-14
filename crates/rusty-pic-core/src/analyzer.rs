@@ -126,15 +126,20 @@ impl ImageAnalyzer {
         let (width, height) = rgba_img.dimensions();
         let pixel_count = width * height;
 
-        // For large images, use parallel sampling for better performance
-        if pixel_count > 1_000_000 {
-            self.estimate_color_count_parallel(&rgba_img)
-        } else {
-            self.estimate_color_count_sequential(&rgba_img)
+        // wasm32 无线程池，一律走串行采样
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if pixel_count > 1_000_000 {
+                return self.estimate_color_count_parallel(&rgba_img);
+            }
         }
+        let _ = pixel_count;
+
+        self.estimate_color_count_sequential(&rgba_img)
     }
 
     /// Parallel color counting for large images（无锁局部集合 + 归并）
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     fn estimate_color_count_parallel(
         &self,
         img: &image::ImageBuffer<image::Rgba<u8>, Vec<u8>>,

@@ -5,8 +5,10 @@ use crate::{
     CompressionError, ImageAnalyzer, ImageMetadata, Result,
 };
 use image::{DynamicImage, GenericImageView};
+#[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
 use std::sync::Arc;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
 /// Main compression engine that coordinates different format encoders
@@ -48,16 +50,28 @@ impl CompressionEngine {
         images: Vec<&[u8]>,
         options: &CompressionOptions,
     ) -> Vec<Result<CompressionResult>> {
-        let options = Arc::new(options.clone());
+        // wasm32 无可用线程池，退化为串行处理
+        #[cfg(target_arch = "wasm32")]
+        {
+            return images
+                .into_iter()
+                .map(|data| self.compress_with_optimizations(data, options))
+                .collect();
+        }
 
-        // Use parallel processing for batch operations
-        images
-            .into_par_iter()
-            .map(|data| {
-                let opts = Arc::clone(&options);
-                self.compress_with_optimizations(data, &opts)
-            })
-            .collect()
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let options = Arc::new(options.clone());
+
+            // Use parallel processing for batch operations
+            images
+                .into_par_iter()
+                .map(|data| {
+                    let opts = Arc::clone(&options);
+                    self.compress_with_optimizations(data, &opts)
+                })
+                .collect()
+        }
     }
 
     /// Compress an image with the given options
@@ -71,6 +85,9 @@ impl CompressionEngine {
         data: &[u8],
         options: &CompressionOptions,
     ) -> Result<CompressionResult> {
+        // wasm32-unknown-unknown 上 Instant::now() 会 panic（"time not implemented"），
+        // 该平台改由 JS 侧计时
+        #[cfg(not(target_arch = "wasm32"))]
         let start_time = Instant::now();
         let original_size = data.len();
 
@@ -93,7 +110,10 @@ impl CompressionEngine {
         let compressed_data =
             self.compress_to_format_optimized(&processed_img, &target_format, options)?;
 
+        #[cfg(not(target_arch = "wasm32"))]
         let processing_time = start_time.elapsed().as_millis() as u64;
+        #[cfg(target_arch = "wasm32")]
+        let processing_time = 0u64;
         let compressed_size = compressed_data.len();
         let compression_ratio = if original_size > 0 {
             compressed_size as f32 / original_size as f32
@@ -168,60 +188,63 @@ impl CompressionEngine {
                     _ => image::imageops::FilterType::Triangle,
                 };
 
-                // 大图分块并行缩放：按行块切片后并行 resize，再拼接
-                let pixel_count = current_width as usize * current_height as usize;
-                if pixel_count > 4_000_000 {
-                    // 将图像转为 RGBA8 以便安全切片
-                    let rgba = img.to_rgba8();
-                    let src_width = current_width;
-                    let src_height = current_height;
+                // wasm32 无线程池，直接整体缩放；native 大图分块并行缩放
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let pixel_count = current_width as usize * current_height as usize;
+                    if pixel_count > 4_000_000 {
+                        // 将图像转为 RGBA8 以便安全切片
+                        let rgba = img.to_rgba8();
+                        let src_width = current_width;
+                        let src_height = current_height;
 
-                    // 设定块行高，确保至少 8 块
-                    let target_blocks = 8usize;
-                    let block_rows =
-                        std::cmp::max(1, (src_height as usize).div_ceil(target_blocks)) as u32;
+                        // 设定块行高，确保至少 8 块
+                        let target_blocks = 8usize;
+                        let block_rows =
+                            std::cmp::max(1, (src_height as usize).div_ceil(target_blocks)) as u32;
 
-                    // 为每个块计算源/目标 y 范围
-                    let mut parts: Vec<(u32, u32)> = Vec::new();
-                    let mut y = 0u32;
-                    while y < src_height {
-                        let h = std::cmp::min(block_rows, src_height - y);
-                        parts.push((y, h));
-                        y += h;
-                    }
-
-                    use image::{imageops, RgbaImage};
-                    // 并行处理每个块：裁剪 -> 缩放到对应目标高度比例
-                    let scaled_parts: Vec<RgbaImage> = parts
-                        .into_par_iter()
-                        .map(|(y0, h)| {
-                            let view = imageops::crop_imm(&rgba, 0, y0, src_width, h).to_image();
-                            // 计算该块在目标图中的高度（按比例）
-                            let dest_h = std::cmp::max(
-                                1,
-                                ((h as u64 * new_height as u64) / src_height as u64) as u32,
-                            );
-                            imageops::resize(&view, new_width, dest_h, filter)
-                        })
-                        .collect();
-
-                    // 拼接各块
-                    let mut out = RgbaImage::new(new_width, new_height);
-                    let mut dy = 0u32;
-                    for block in scaled_parts {
-                        let bh = block.height();
-                        imageops::replace(&mut out, &block, 0, dy as i64);
-                        dy += bh;
-                        if dy >= new_height {
-                            break;
+                        // 为每个块计算源/目标 y 范围
+                        let mut parts: Vec<(u32, u32)> = Vec::new();
+                        let mut y = 0u32;
+                        while y < src_height {
+                            let h = std::cmp::min(block_rows, src_height - y);
+                            parts.push((y, h));
+                            y += h;
                         }
-                    }
 
-                    Ok(DynamicImage::ImageRgba8(out))
-                } else {
-                    // 中小图走一次性缩放
-                    Ok(img.resize(new_width, new_height, filter))
+                        use image::{imageops, RgbaImage};
+                        // 并行处理每个块：裁剪 -> 缩放到对应目标高度比例
+                        let scaled_parts: Vec<RgbaImage> = parts
+                            .into_par_iter()
+                            .map(|(y0, h)| {
+                                let view = imageops::crop_imm(&rgba, 0, y0, src_width, h).to_image();
+                                // 计算该块在目标图中的高度（按比例）
+                                let dest_h = std::cmp::max(
+                                    1,
+                                    ((h as u64 * new_height as u64) / src_height as u64) as u32,
+                                );
+                                imageops::resize(&view, new_width, dest_h, filter)
+                            })
+                            .collect();
+
+                        // 拼接各块
+                        let mut out = RgbaImage::new(new_width, new_height);
+                        let mut dy = 0u32;
+                        for block in scaled_parts {
+                            let bh = block.height();
+                            imageops::replace(&mut out, &block, 0, dy as i64);
+                            dy += bh;
+                            if dy >= new_height {
+                                break;
+                            }
+                        }
+
+                        return Ok(DynamicImage::ImageRgba8(out));
+                    }
                 }
+
+                // 中小图（及 wasm）走一次性缩放
+                Ok(img.resize(new_width, new_height, filter))
             } else {
                 Ok(img.clone())
             }

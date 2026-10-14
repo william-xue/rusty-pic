@@ -124,8 +124,11 @@ impl RustyPic {
             let engine = CompressionEngine::new();
 
             // 构建压缩选项
+            // WASM 端当前仅实现了 PNG 编码器；无论请求何种输出格式均生成 PNG，
+            // 其他格式（webp/jpeg/avif）由 JS 层回退 Canvas 实现
+            let _ = options.format;
             let compression_options = CompressionOptions {
-                format: options.format.or_else(|| Some("png".to_string())),
+                format: Some("png".to_string()),
                 quality: options.quality.or(Some(80)),
                 resize: None,
                 optimize: None,
